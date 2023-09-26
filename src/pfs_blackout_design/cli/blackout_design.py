@@ -2,7 +2,7 @@
 
 import argparse
 
-from ..utils import generate_design_per_propid
+from ..MaskedPfsDesign import MaskedPfsDesign
 
 
 def main():
@@ -20,13 +20,14 @@ def main():
 
     args = parser.parse_args()
 
-    generate_design_per_propid(
+    masked_pfs_design = MaskedPfsDesign(
         args.pfs_design_identifier,
         indir=args.indir,
         outdir=args.outdir,
         is_hex=args.hex,
         is_file=args.file,
     )
+    masked_pfs_design.do_all()
 
 
 if __name__ == "__main__":
