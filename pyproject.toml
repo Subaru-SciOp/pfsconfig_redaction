@@ -1,0 +1,27 @@
+[project]
+name = "pfs_blackout_design"
+version = "0.1.0"
+description = "Black out information in pfsDesign/pfsConfig to distribute raw data to PIs."
+authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
+dependencies = [
+    "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
+    "astropy>=5.3.3",
+    "scipy>=1.9.3",
+    "logzero>=1.7.0",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = { text = "MIT" }
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project.scripts]
+pfs_blackout_design = "pfs_blackout_design.cli.blackout_design:main"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ipython>=8.15.0",
+]
