@@ -131,3 +131,44 @@ def mask_entries(design):
                 out_designs[propid_use] = design_tmp
 
     return out_designs
+
+
+def generate_design_per_propid(
+    pfs_design_identifier,
+    indir=".",
+    outdir=".",
+    is_hex=False,
+    is_file=False,
+):
+    """All-in-one function
+
+    Parameters
+    ----------
+    pfs_design_identifier : str or int
+        pfsDesign ID.
+        The identifier can be one of a hex string (e.g., 0x4f966fa98c958b91),
+        an integer (e.g., 5734893949501672337), or
+        a filename (e.g., pfsDesign-0x4f966fa98c958b91.fits)
+    indir : str, optional
+        Directory where the input file is located, by default "."
+    outdir : str, optional
+        Directory where output files will be saved, by default "."
+    is_hex : bool, optional
+        True if `pfs_design_identifier` is a hex string, by default False
+    is_file : bool, optional
+        True if `pfs_design_identifier` is a filename, by default False
+    """
+    in_design = load_design(
+        pfs_design_identifier,
+        indir=indir,
+        is_hex=is_hex,
+        is_file=is_file,
+    )
+
+    out_designs = mask_entries(in_design)
+
+    write_designs(
+        out_designs,
+        prefix=os.path.splitext(in_design.filename)[0],
+        outdir=outdir,
+    )
