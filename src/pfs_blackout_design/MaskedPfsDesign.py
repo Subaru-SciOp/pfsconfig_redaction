@@ -15,6 +15,28 @@ from pfs.datamodel import PfsDesign
 
 
 class MaskedPfsDesign:
+    """A class to store information on the original pfsDesign and masked pfsDesigns
+
+    Attributes
+    ----------
+    indir : str
+        Directory where the input file is located, by default "."
+    outdir : str
+        Directory where output files will be saved, by default "."
+    out_designs : dict (str, pfs.datamodel.pfsConfig.PfsDesign)
+        A dictionary containing a PfsDesign instance (value) for
+        each proposal ID (key).
+    out_prefix : str
+        A prefix for output file, by default "pfsDesign". The output file
+        is named as `prefix_{proposal_id}.fits`.
+
+    Methods
+    -------
+    do_all()
+        Mask unnecessary information for all proposal IDs in the input pfsDesign and
+        write them separately.
+    """
+
     def _load_design(
         self,
         pfs_design_identifier,
@@ -74,6 +96,20 @@ class MaskedPfsDesign:
         is_hex=False,
         is_file=False,
     ):
+        """Initialize the class
+
+        Parameters
+        ----------
+        pfs_design_identifier : str or int
+            pfsDesign ID.
+            The identifier can be one of a hex string (e.g., 0x4f966fa98c958b91),
+            an integer (e.g., 5734893949501672337), or
+            a filename (e.g., pfsDesign-0x4f966fa98c958b91.fits)
+        is_hex : bool, optional
+            True if `pfs_design_identifier` is a hex string, by default False
+        is_file : bool, optional
+            True if `pfs_design_identifier` is a filename, by default False
+        """
         self.indir = indir
         self.outdir = outdir
         self.in_design = self._load_design(
@@ -85,20 +121,8 @@ class MaskedPfsDesign:
         self.out_designs = {}
         self.out_prefix = os.path.splitext(self.in_design.filename)[0]
 
-    def _write_designs(self):  # , designs, prefix="pfsDesign", outdir="."):
-        """Write pfsDesign files for each proposal ID
-
-        Parameters
-        ----------
-        designs : dict (str, pfs.datamodel.pfsConfig.PfsDesign)
-            A dictionary containing a PfsDesign instance (value) for
-            each proposal ID (key).
-        prefix : str, optional
-            A prefix for output file, by default "pfsDesign". The output file
-            is named as `prefix_{proposal_id}.fits`.
-        outdir : str, optional
-            Directory where output files will be saved, by default "."
-        """
+    def _write_designs(self):
+        """Write pfsDesign files for each proposal ID"""
         for k, v in self.out_designs.items():
             v.validate()
             v.write(dirName=self.outdir, fileName=f"{self.out_prefix}_{k}.fits")

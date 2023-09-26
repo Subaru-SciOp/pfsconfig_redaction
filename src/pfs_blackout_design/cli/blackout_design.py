@@ -2,7 +2,7 @@
 
 import argparse
 
-from ..MaskedPfsDesign import MaskedPfsDesign
+from .. import MaskedPfsDesign
 
 
 def main():

@@ -14,9 +14,11 @@ python3 -m pip install -e .
 $ pfs_blackout_design -h
 usage: pfs_blackout_design [-h] [--hex] [--file] [-d INDIR] [-o OUTDIR] pfs_design_identifier
 
+A command-line script to generate pfsDesign files for each proposal in the input design file
+
 positional arguments:
   pfs_design_identifier
-                        Input pfsDesign ID (either hex or int (default)) or pfsDesign filename.
+                        Input pfsDesign ID (either hex or int (default)) or pfsDesign filename
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -53,4 +55,15 @@ $ pfs_blackout_design 0x4f966fa98c958b91 -d ./tmp/examples -o ./tmp/examples --h
 
 # By a filename
 $ pfs_blackout_design pfsDesign-0x4f966fa98c958b91.fits -d ./tmp/examples -o ./tmp/examples --file
+```
+
+## Call from a Python script
+
+The following example is equialent to the command-line client example shown above.
+
+```python
+from pfs_blackout_design import MaskedPfsDesign
+
+masked_pfs_design = MaskedPfsDesign("pfsDesign-0x4f966fa98c958b91.fits", indir="./tmp/examples/", outdir="./tmp/examples/", is_file=True)
+masked_pfs_design.do_all()
 ```
