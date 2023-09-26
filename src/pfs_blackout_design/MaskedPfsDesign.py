@@ -8,11 +8,6 @@ from astropy.io import fits
 from logzero import logger
 from pfs.datamodel import PfsDesign
 
-# class DummyClass:
-#     def __init__(self):
-#         logger.info("do nothing.")
-#         pass
-
 
 class MaskedPfsDesign:
     """A class to store information on the original pfsDesign and masked pfsDesigns
