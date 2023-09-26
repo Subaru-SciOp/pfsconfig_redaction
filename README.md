@@ -3,7 +3,7 @@
 ## Installation
 
 ```
-git clone <repository>
+git clone https://github.com/monodera/pfs_blackout_design.git
 cd pfs_blackout_design
 python3 -m pip install -e .
 ```
