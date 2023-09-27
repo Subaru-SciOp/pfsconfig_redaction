@@ -6,7 +6,7 @@ import os
 import numpy as np
 from astropy.io import fits
 from logzero import logger
-from pfs.datamodel import PfsDesign
+from pfs.datamodel import PfsConfig, PfsDesign
 
 
 class MaskedPfsDesign:
@@ -33,11 +33,7 @@ class MaskedPfsDesign:
     """
 
     def _load_design(
-        self,
-        pfs_design_identifier,
-        indir=".",
-        is_hex=False,
-        is_file=False,
+        self, pfs_design_identifier, indir=".", is_hex=False, is_file=False, visit=None
     ):
         """Load pfsDesign file
 
@@ -54,17 +50,26 @@ class MaskedPfsDesign:
             True if `pfs_design_identifier` is a hex string, by default False
         is_file : bool, optional
             True if `pfs_design_identifier` is a filename, by default False
+        visit : int, optional
+            visit number when the input is a pfsConfig file
 
         Returns
         -------
-        pfs.datamodel.pfsConfig.PfsDesign
-            PfsDesign class instance.
+        pfs.datamodel.pfsConfig.PfsDesign or pfs.datamodel.pfsConfig.PfsConfig
+            PfsDesign or PfsConfig class instance depending on the input
         """
         if is_file:
             logger.info(f"pfsDesign filename is provided: {pfs_design_identifier}")
             pfs_design_file = os.path.join(indir, pfs_design_identifier)
             pfs_design_id = fits.getval(pfs_design_file, "W_PFDSGN", 0)
-            design = PfsDesign._readImpl(pfs_design_file, pfsDesignId=pfs_design_id)
+            try:
+                visit = fits.getval(pfs_design_file, "W_VISIT", 0)
+                design = PfsConfig._readImpl(
+                    pfs_design_file, pfsDesignId=pfs_design_id, visit=visit
+                )
+            except KeyError:
+                visit = None
+                design = PfsDesign._readImpl(pfs_design_file, pfsDesignId=pfs_design_id)
             return design
         elif is_hex:
             logger.info(
@@ -77,8 +82,10 @@ class MaskedPfsDesign:
             )
             pfs_design_id = int(pfs_design_identifier)
 
-        design = PfsDesign.read(pfs_design_id, dirName=indir)
-        # design = super().read(pfs_design_id, dirName=indir)
+        if visit is None:
+            design = PfsDesign.read(pfs_design_id, dirName=indir)
+        else:
+            design = PfsConfig.read(pfs_design_id, dirName=indir, visit=visit)
         logger.info(f"{design.filename} successfully loaded from {indir}")
 
         return design
@@ -90,6 +97,7 @@ class MaskedPfsDesign:
         outdir=".",
         is_hex=False,
         is_file=False,
+        visit=None,
     ):
         """Initialize the class
 
@@ -104,6 +112,8 @@ class MaskedPfsDesign:
             True if `pfs_design_identifier` is a hex string, by default False
         is_file : bool, optional
             True if `pfs_design_identifier` is a filename, by default False
+        visit : int, optional
+            visit number when the input is a pfsConfig file
         """
         self.indir = indir
         self.outdir = outdir
@@ -112,6 +122,7 @@ class MaskedPfsDesign:
             indir=self.indir,
             is_hex=is_hex,
             is_file=is_file,
+            visit=visit,
         )
         self.out_designs = {}
         self.out_prefix = os.path.splitext(self.in_design.filename)[0]
@@ -192,3 +203,11 @@ class MaskedPfsDesign:
     def do_all(self):
         self._mask_entries()
         self._write_designs()
+
+
+masked_pfs_design = MaskedPfsDesign(
+    "pfsDesign-0x4f966fa98c958b91.fits",
+    indir="./tmp/examples/",
+    outdir="./tmp/examples/",
+    is_file=True,
+)
