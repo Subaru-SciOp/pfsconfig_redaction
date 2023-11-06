@@ -1,10 +1,38 @@
 # Blackout pfsDesign
 
+A tool to mask information unrelated to a specific proposal ID in `pfsDesing` and `pfsConfig` files.
+
+The following values are masked as follows.
+
+
+| Keyword                    |     Mask value |
+|----------------------------|---------------:|
+| `catId`                    |             -1 |
+| `catId`                    |             -1 |
+| `tract`                    |              0 |
+| `patch`                    |          `0,0` |
+| `objId`                    |             -1 |
+| `ra`                       |            0.0 |
+| `dec`                      |            0.0 |
+| `pmRa`                     |            0.0 |
+| `pmDec`                    |            0.0 |
+| `parallax`                 |         1.0e-8 |
+| `proposalId`               |       `masked` |
+| `obCode`                   |       `masked` |
+| `{fiber,psf,total}Flux`    |    list of NaN |
+| `{fiber,psf,total}FluxErr` |    list of NaN |
+| `filterNames`              | list of `none` |
+
+- `(catId, objId)=(-1, -1)` is allowed to duplicate. If there are any issues on DRP, please let us know.
+
 ## Installation
 
 ```sh
 git clone https://github.com/monodera/pfs_blackout_design.git
 cd pfs_blackout_design
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requitements.txt
 python3 -m pip install -e .
 ```
 
