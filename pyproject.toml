@@ -5,7 +5,7 @@ description = "Black out information in pfsDesign/pfsConfig to distribute raw da
 authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
 dependencies = [
     "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-    "astropy>=5.3.3",
+    "astropy>=5.2",
     "scipy>=1.9.3",
     "logzero>=1.7.0",
 ]
@@ -22,7 +22,7 @@ build-backend = "setuptools.build_meta"
 pfs_blackout_design = "pfs_blackout_design.cli.blackout_design:main"
 
 [tool.pdm.dev-dependencies]
-dev = ["ipython>=8.15.0"]
+dev = ["ipython>=8.12"]
 
 [tool.pdm.scripts]
 gen-requirements = { cmd = [
