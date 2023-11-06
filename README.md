@@ -1,6 +1,6 @@
 # Blackout pfsDesign
 
-A tool to mask information unrelated to a specific proposal ID in `pfsDesing` and `pfsConfig` files.
+A tool to mask information unrelated to a specific proposal ID in `pfsDesign` and `pfsConfig` files.
 
 The following values are masked as follows.
 
