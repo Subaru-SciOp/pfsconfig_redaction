@@ -32,7 +32,7 @@ git clone https://github.com/monodera/pfs_blackout_design.git
 cd pfs_blackout_design
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requitements.txt
+python3 -m pip install -r requirements.txt
 python3 -m pip install -e .
 ```
 
