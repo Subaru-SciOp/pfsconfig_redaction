@@ -203,11 +203,3 @@ class MaskedPfsDesign:
     def do_all(self):
         self._mask_entries()
         self._write_designs()
-
-
-masked_pfs_design = MaskedPfsDesign(
-    "pfsDesign-0x4f966fa98c958b91.fits",
-    indir="./tmp/examples/",
-    outdir="./tmp/examples/",
-    is_file=True,
-)
