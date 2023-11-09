@@ -198,7 +198,7 @@ class MaskedPfsDesign:
                     ]
                     getattr(design_tmp, "filterNames")[i] = filter_mask
 
-                    self.out_designs[propid_use] = design_tmp
+            self.out_designs[propid_use] = design_tmp
 
     def do_all(self):
         self._mask_entries()
