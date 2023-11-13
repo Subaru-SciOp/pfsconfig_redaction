@@ -2,8 +2,7 @@
 
 A tool to mask information unrelated to a specific proposal ID in `pfsDesign` and `pfsConfig` files.
 
-The following values are masked as follows.
-
+The following values are masked as follows when a fiber is assigned for a `SCIENCE` object, i.e., `targetType == 1`, `proposalId != "N/A"` and `proposalId` is not the specific proposal under processed.
 
 | Keyword                    |     Mask value |
 |----------------------------|---------------:|
@@ -60,8 +59,7 @@ optional arguments:
 ```
 
 ### Example
-
-This example read a `pfsDesign` file with the `pfsDesignId` of `5734893949501672337` from the `./tmp/examples` directory and save `pfsDesign` files containing only the information on fibers with a relevant proposal ID and calibration fibers under `./tmp/examples`.
+This example reads a `pfsDesign`` file with the `pfsDesignId` of `5734893949501672337` from the `./tmp/examples` directory and save `pfsDesign` files containing only the information on fibers with a relevant proposal ID and calibration fibers under `./tmp/examples`.
 
 ```shell
 $ pfs_blackout_design 5734893949501672337 -d ./tmp/examples -o tmp/examples/

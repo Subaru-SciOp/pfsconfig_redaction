@@ -3,6 +3,7 @@
 
 astropy>=5.2
 ipython>=8.12
-logzero>=1.7.0
+loguru>=0.7.2
+numpy>=1.24.4
 pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git
 scipy>=1.9.3

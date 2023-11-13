@@ -5,8 +5,12 @@ import os
 
 import numpy as np
 from astropy.io import fits
-from logzero import logger
 from pfs.datamodel import PfsConfig, PfsDesign
+
+try:
+    from loguru import logger
+except ImportError:
+    from logzero import logger
 
 
 class MaskedPfsDesign:
@@ -70,6 +74,7 @@ class MaskedPfsDesign:
             except KeyError:
                 visit = None
                 design = PfsDesign._readImpl(pfs_design_file, pfsDesignId=pfs_design_id)
+            logger.info(f"{design.filename} successfully loaded from {indir}")
             return design
         elif is_hex:
             logger.info(
@@ -182,8 +187,10 @@ class MaskedPfsDesign:
             logger.info(f"Processing proposal ID {propid_use}")
             design_tmp = copy.deepcopy(self.in_design)
             for i in range(self.in_design.fiberId.size):
-                if (design_tmp.proposalId[i] != "N/A") and (
-                    design_tmp.proposalId[i] != propid_use
+                if (
+                    (design_tmp.proposalId[i] != "N/A")
+                    and (design_tmp.proposalId[i] != propid_use)
+                    and (design_tmp.targetType[i] == 1)
                 ):
                     for k, v in dict_mask.items():
                         getattr(design_tmp, k)[i] = v
