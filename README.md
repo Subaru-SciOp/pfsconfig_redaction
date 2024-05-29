@@ -26,7 +26,7 @@ The following values are masked as follows when a fiber is assigned for a `SCIEN
 
 ## Installation
 
-```sh
+```console
 git clone https://github.com/monodera/pfs_blackout_design.git
 cd pfs_blackout_design
 python3 -m venv .venv
@@ -37,7 +37,7 @@ python3 -m pip install -e .
 
 ## Usage
 
-```sh
+```console
 $ pfs_blackout_design -h
 usage: pfs_blackout_design [-h] [--visit VISIT] [--hex] [--file] [-d INDIR] [-o OUTDIR] pfs_design_identifier
 
@@ -59,9 +59,9 @@ optional arguments:
 ```
 
 ### Example
-This example reads a `pfsDesign`` file with the `pfsDesignId` of `5734893949501672337` from the `./tmp/examples` directory and save `pfsDesign` files containing only the information on fibers with a relevant proposal ID and calibration fibers under `./tmp/examples`.
+This example reads a `pfsDesign` file with the `pfsDesignId` of `5734893949501672337` from the `./tmp/examples` directory and save `pfsDesign` files containing only the information on fibers with a relevant proposal ID and calibration fibers under `./tmp/examples`.
 
-```shell
+```console
 $ pfs_blackout_design 5734893949501672337 -d ./tmp/examples -o tmp/examples/
 ```
 
@@ -77,7 +77,7 @@ pfsDesign-0x4f966fa98c958b91_S23A-QN903.fits
 
 You can work on a `pfsConfig` file by supplying a `visit` parameter as follows.
 
-```sh
+```console
 $ pfs_blackout_design 5734893949501672337 -d ./tmp/examples -o tmp/examples/ --visit 1
 ```
 
@@ -93,7 +93,7 @@ pfsConfig-0x4f966fa98c958b91-000001_S23A-QN903.fits
 
 You can also tell the `pfsDesignId` by a hex string or filename. The following two commands are equivalent to the example above.
 
-```sh
+```console
 # By a hex string
 $ pfs_blackout_design 0x4f966fa98c958b91 -d ./tmp/examples -o ./tmp/examples --hex
 $ pfs_blackout_design 0x4f966fa98c958b91 -d ./tmp/examples -o ./tmp/examples --hex --visit 1
