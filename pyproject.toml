@@ -1,40 +1,18 @@
 [project]
-name = "pfs_blackout_design"
+name = "pfsconfig_redaction"
 version = "0.1.0"
-description = "Black out information in pfsDesign/pfsConfig to distribute raw data to PIs."
+description = "Redact information in pfsConfig (PFSF) files for raw data deliverty to PIs."
 authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
 dependencies = [
     "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-    "astropy>=5.2",
-    "loguru>=0.7.2",
-    "numpy>=1.24.4",
-    "scipy>=1.9.3",
+    "astropy>=5.2",                                                    # required by pfs-datamodel
+    "numpy>=1.24.4",                                                   # required by pfs-datamodel
+    "scipy>=1.9.3",                                                    # required by pfs-datamodel
 ]
-requires-python = ">=3.8,<3.13"
+requires-python = ">=3.9,<3.13"
 readme = "README.md"
 license = { text = "MIT" }
 
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
-
-
-[project.scripts]
-pfs_blackout_design = "pfs_blackout_design.cli.blackout_design:main"
-
-[tool.pdm.dev-dependencies]
-dev = ["ipython>=8.12"]
-
-[tool.pdm.scripts]
-gen-requirements = { cmd = [
-    "pdm",
-    "export",
-    "--format",
-    "requirements",
-    "--without-hashes",
-    "--pyproject",
-    "--dev",
-    "--output",
-    "requirements.txt",
-    "--verbose",
-], help = "Generate requirements.txt" }
