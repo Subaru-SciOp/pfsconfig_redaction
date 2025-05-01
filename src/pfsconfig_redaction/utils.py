@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # define a dataclass for the redaccted pfsConfig
 @dataclass
-class RedactedPfsConfig:
+class RedactedPfsConfigDataClass:
     """
     A dataclass to hold the redacted PfsConfig.
 
@@ -74,6 +74,7 @@ def generate_hashed_obj_id(
     hash_input = f"{secret_salt}{cat_id}:{obj_id}".encode("utf-8")
     hash_digest = hashlib.sha256(hash_input).digest()
 
+    # Convert the first 8 bytes of the hash to a 64-bit integer
     value = int.from_bytes(hash_digest[:8], byteorder="little")
     value = value % np.iinfo(np.int64).max
 
@@ -83,13 +84,13 @@ def generate_hashed_obj_id(
 def redact(
     pfs_config: PfsConfig,
     cpfsf_id0: int = 0,
+    secret_salt: str = None,
+    cat_id: int = 9000,
     dict_mask: dict = None,
     flux_keys=None,
     flux_val=None,
     filter_val=None,
-    secret_salt: str = None,
-    cat_id: int = 9000,
-):
+) -> list[RedactedPfsConfigDataClass]:
     if secret_salt is None:
         logger.error("secret_salt must be provided")
         raise ValueError("secret_salt must be provided")
@@ -114,8 +115,6 @@ def redact(
         }
 
     if flux_keys is None:
-        # Length of flux arrays can be different for each fiber,
-        # so only keys are defined here.
         flux_keys = [
             "fiberFlux",
             "psfFlux",
@@ -140,7 +139,8 @@ def redact(
 
     logger.info(f"Unique proposal IDs in the pfsConfig: {pformat(proposal_ids)}")
 
-    redacted_pfsconfigs = []
+    # Initialize the list to hold redacted PfsConfig objects
+    redacted_pfsconfigs: list[RedactedPfsConfigDataClass] = []
 
     cpfsf_id = cpfsf_id0
 
@@ -155,18 +155,31 @@ def redact(
         logger.info(
             f"Processing proposal ID {propid_work} (input_catalog_id {catalog_ids[i]})"
         )
-        # increment cpfsf_id
+
+        # Get the number of SCIENCE fibers for targets from this proposal ID
+        idx_propid = np.logical_and(
+            pfs_config.proposalId == propid_work,
+            pfs_config.targetType == TargetType.SCIENCE,
+        )
+        n_fiber_work = np.sum(idx_propid)
+
+        n_fiber_masked = 0
+        n_fiber_unmasked = 0
+
+        # Increment cpfsf_id
         cpfsf_id += 1
 
+        # Create a copy of the original PfsConfig to redact
         redacted_cfg = copy.deepcopy(pfs_config)
 
         for i_fiber in range(pfs_config.fiberId.size):
+
             if (
                 (redacted_cfg.proposalId[i_fiber] != "N/A")
                 and (redacted_cfg.proposalId[i_fiber] != propid_work)
                 and (redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE)
             ):
-                # Generate hashed object ID first
+                # Generate hashed object ID before masking catId
                 redacted_cfg.objId[i_fiber] = generate_hashed_obj_id(
                     pfs_config.catId[i_fiber],
                     pfs_config.objId[i_fiber],
@@ -177,7 +190,7 @@ def redact(
                 for k, v in dict_mask.items():
                     getattr(redacted_cfg, k)[i_fiber] = v
 
-                # NOTE: keep the number of elements for flux information
+                # NOTE: keep the number of elements for flux and filter information
                 for k in flux_keys:
                     val_mask = np.full_like(getattr(redacted_cfg, k)[i_fiber], flux_val)
                     getattr(redacted_cfg, k)[i_fiber] = val_mask
@@ -187,8 +200,16 @@ def redact(
                 ]
                 getattr(redacted_cfg, "filterNames")[i_fiber] = filter_mask
 
+                n_fiber_masked += 1
+            else:
+                n_fiber_unmasked += 1
+
+        logger.info(f"Number of fibers for {propid_work}: {n_fiber_work}")
+        logger.info(f"Number of masked fibers for {propid_work}: {n_fiber_masked}")
+        logger.info(f"Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}")
+
         redacted_pfsconfigs.append(
-            RedactedPfsConfig(
+            RedactedPfsConfigDataClass(
                 proposal_id=propid_work, pfs_config=redacted_cfg, cpfsf_id=cpfsf_id
             )
         )
