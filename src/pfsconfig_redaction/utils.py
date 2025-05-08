@@ -62,7 +62,6 @@ def generate_hashed_obj_id(
     np.int64
         The hashed object ID, which is a 64-bit integer.
     """
-
     if secret_salt is None:
         logger.error("secret_salt must be provided")
         raise ValueError("secret_salt must be provided")
@@ -91,6 +90,38 @@ def redact(
     flux_val=None,
     filter_val=None,
 ) -> list[RedactedPfsConfigDataClass]:
+    """
+    Redact the PfsConfig object by masking sensitive information.
+
+    Parameters
+    ----------
+    pfs_config : PfsConfig
+        The PfsConfig object to be redacted.
+    cpfsf_id0 : int, optional
+        The initial cpfsf_id to start from. Default is 0.
+    secret_salt : str, optional
+        A secret salt used to generate the hash. This should be a unique and
+        unpredictable value to ensure the security of the hash.
+        If not provided, a ValueError will be raised.
+    cat_id : int, optional
+        The catalog ID to be used for masking. Default is 9000.
+    dict_mask : dict, optional
+        A dictionary defining keys to be masked and their mask values.
+        If not provided, a default dictionary will be used.
+    flux_keys : list, optional
+        A list of keys for flux values to be masked. Default is a list of
+        ["fiberFlux", "psfFlux", "totalFlux", "fiberFluxErr", "psfFluxErr", "totalFluxErr"].
+    flux_val : float, optional
+        The value to be used for masking flux values. Default is np.nan.
+    filter_val : str, optional
+        The value to be used for masking filter values. Default is "none".
+
+    Returns
+    -------
+    list[RedactedPfsConfigDataClass]
+        A list of RedactedPfsConfigDataClass objects containing the redacted
+        PfsConfig objects and their associated proposal IDs.
+    """
     if secret_salt is None:
         logger.error("secret_salt must be provided")
         raise ValueError("secret_salt must be provided")
