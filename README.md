@@ -52,9 +52,22 @@ pfs_config = PfsConfig.readFits(os.path.join(indir, input_file))
 
 redacted_pfsconfigs = pfsconfig_redaction.redact(
     pfs_config,
+    dict_group_id={"S24B-EN16": "o24016", "S25A": "o25103"},
     cpfsf_id0=0,
     secret_salt="my_secret_salt",
 )
+
+for i, redacted_pfsconfig in enumerate(redacted_pfsconfigs):
+    # Skip if proposal_id is "N/A"
+    if redacted_pfsconfig.proposal_id == "N/A":
+        continue
+
+    proposal_id = redacted_pfsconfig.proposal_id
+
+    # Save the redacted PfsConfig to a FITS file
+    redacted_pfsconfig.pfs_config.writeFits(
+        os.path.join(outdir, f"redacted_PFSF12361000_{proposal_id}.fits")
+    )
 ```
 
 The returned `redacted_pfsconfigs` is a list of `RedactedPfsConfig` objects, which has `proposal_id`, `cpfsf_id`, and `pfs_config` attributes. The `proposal_id` and `cpfsf_id` attributes are the proposal_id and cpfsf_id to be delivered. The `pfs_config` attribute is a `PfsConfig` object with the information masked.

@@ -84,6 +84,7 @@ def redact(
     pfs_config: PfsConfig,
     cpfsf_id0: int = 0,
     secret_salt: str = None,
+    dict_group_id: dict = None,
     cat_id: int = 9000,
     dict_mask: dict = None,
     flux_keys=None,
@@ -103,6 +104,10 @@ def redact(
         A secret salt used to generate the hash. This should be a unique and
         unpredictable value to ensure the security of the hash.
         If not provided, a ValueError will be raised.
+    dict_group_id : dict, optional
+        A dictionary defining group IDs for different proposal IDs. An example
+        is {"S24B-EN16": "o24016", "S25A": "o25103"}. If not provided, the `PROP-ID` header
+        keyword will not be replaced.
     cat_id : int, optional
         The catalog ID to be used for masking. Default is 9000.
     dict_mask : dict, optional
@@ -238,6 +243,24 @@ def redact(
         logger.info(f"Number of fibers for {propid_work}: {n_fiber_work}")
         logger.info(f"Number of masked fibers for {propid_work}: {n_fiber_masked}")
         logger.info(f"Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}")
+
+        if dict_group_id is not None:
+            # Check if the proposal ID is in the dictionary
+            if propid_work in dict_group_id:
+                # Replace the proposal ID with the group ID
+                redacted_cfg.header["PROP-ID"] = dict_group_id[propid_work]
+                logger.info(
+                    f"Replacing the PROP-ID in the header with group ID {dict_group_id[propid_work]}"
+                )
+            else:
+                logger.error(
+                    f"Proposal ID {propid_work} not found in dict_group_id. No replacement made."
+                )
+                raise KeyError(f"Proposal ID {propid_work} not found in dict_group_id.")
+        else:
+            logger.warning(
+                "dict_group_id is None. No replacement made for PROP-ID in the header."
+            )
 
         redacted_pfsconfigs.append(
             RedactedPfsConfigDataClass(

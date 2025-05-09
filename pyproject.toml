@@ -16,3 +16,6 @@ license = { text = "MIT" }
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["pandas>=2.2.3"]
