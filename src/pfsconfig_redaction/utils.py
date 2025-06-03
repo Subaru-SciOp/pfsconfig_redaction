@@ -5,6 +5,7 @@ import hashlib
 import logging
 from dataclasses import dataclass
 from pprint import pformat
+from typing import Union
 
 import numpy as np
 from pfs.datamodel import PfsConfig, TargetType
@@ -41,7 +42,7 @@ class RedactedPfsConfigDataClass:
 
 
 def generate_hashed_obj_id(
-    cat_id: int, obj_id: np.int64, secret_salt: str = None
+    cat_id: int, obj_id: np.int64, secret_salt: str | None = None
 ) -> np.int64:
     """
     Generate a hashed object ID based on the given catalog ID, object ID, and secret salt.
@@ -83,13 +84,13 @@ def generate_hashed_obj_id(
 def redact(
     pfs_config: PfsConfig,
     cpfsf_id0: int = 0,
-    secret_salt: str = None,
-    dict_group_id: dict = None,
+    secret_salt: str | None = None,
+    dict_group_id: dict[str, str] | None = None,
     cat_id: int = 9000,
-    dict_mask: dict = None,
-    flux_keys=None,
-    flux_val=None,
-    filter_val=None,
+    dict_mask: dict[str, Union[int, str, float]] | None = None,
+    flux_keys: list[str] | None = None,
+    flux_val: float | None = None,
+    filter_val: str | None = None,
 ) -> list[RedactedPfsConfigDataClass]:
     """
     Redact the PfsConfig object by masking sensitive information.
@@ -139,10 +140,10 @@ def redact(
         # A dictionary defining keys to be masked and their mask values.
         dict_mask = {
             "catId": cat_id,
-            "tract": 0,
-            "patch": "0,0",
-            "ra": 0.0,
-            "dec": 0.0,
+            "tract": -1,
+            "patch": "-1,-1",
+            "ra": -99,
+            "dec": -99,
             "pmRa": 0.0,
             "pmDec": 0.0,
             "parallax": 1.0e-7,
@@ -165,6 +166,9 @@ def redact(
 
     if filter_val is None:
         filter_val = "none"
+
+    orig_proposal_id = pfs_config.header.get("PROP-ID")
+    logger.info(f"Original proposal ID in the pfsConfig: {orig_proposal_id}")
 
     # Get unique pairs of proposal IDs and catalog IDs
     proposal_ids, catalog_ids = map(
@@ -253,10 +257,10 @@ def redact(
                     f"Replacing the PROP-ID in the header with group ID {dict_group_id[propid_work]}"
                 )
             else:
-                logger.error(
-                    f"Proposal ID {propid_work} not found in dict_group_id. No replacement made."
+                logger.warning(
+                    f"Proposal ID {propid_work} not found in dict_group_id. No replacement made to PROP-ID in the header."
                 )
-                raise KeyError(f"Proposal ID {propid_work} not found in dict_group_id.")
+                # raise KeyError(f"Proposal ID {propid_work} not found in dict_group_id.")
         else:
             logger.warning(
                 "dict_group_id is None. No replacement made for PROP-ID in the header."
