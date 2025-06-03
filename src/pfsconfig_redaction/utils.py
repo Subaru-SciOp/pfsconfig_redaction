@@ -41,7 +41,7 @@ class RedactedPfsConfigDataClass:
 
 
 def generate_hashed_obj_id(
-    cat_id: int, obj_id: np.int64, secret_salt: str = None
+    cat_id: int, obj_id: np.int64, secret_salt: str | None = None
 ) -> np.int64:
     """
     Generate a hashed object ID based on the given catalog ID, object ID, and secret salt.
@@ -83,10 +83,10 @@ def generate_hashed_obj_id(
 def redact(
     pfs_config: PfsConfig,
     cpfsf_id0: int = 0,
-    secret_salt: str = None,
-    dict_group_id: dict = None,
+    secret_salt: str | None = None,
+    dict_group_id: dict | None = None,
     cat_id: int = 9000,
-    dict_mask: dict = None,
+    dict_mask: dict | None = None,
     flux_keys=None,
     flux_val=None,
     filter_val=None,
@@ -139,10 +139,10 @@ def redact(
         # A dictionary defining keys to be masked and their mask values.
         dict_mask = {
             "catId": cat_id,
-            "tract": 0,
-            "patch": "0,0",
-            "ra": 0.0,
-            "dec": 0.0,
+            "tract": -1,
+            "patch": "-1,-1",
+            "ra": -99,
+            "dec": -99,
             "pmRa": 0.0,
             "pmDec": 0.0,
             "parallax": 1.0e-7,
