@@ -4,22 +4,24 @@ A tool to mask information unrelated to a specific proposal ID in `pfsConfig`.
 
 The following values are masked as follows when a fiber is assigned for a `SCIENCE` object, i.e., `targetType == 1`, `proposalId != "N/A"` and `proposalId` is not the specific proposal under processed.
 
-| Keyword                    | Datatype      |            Mask value |
-|----------------------------|---------------|----------------------:|
-| `catId`                    | int           |                  9000 |
-| `tract`                    | int           |                    -1 |
-| `patch`                    | str           |               `-1,-1` |
-| `objId`                    | int64         | Hashed 64-bit integer |
-| `ra`                       | float         |                   -99 |
-| `dec`                      | float         |                   -99 |
-| `pmRa`                     | float         |                   0.0 |
-| `pmDec`                    | float         |                   0.0 |
-| `parallax`                 | float         |                1.0e-7 |
-| `proposalId`               | str           |              `masked` |
-| `obCode`                   | str           |              `masked` |
-| `{fiber,psf,total}Flux`    | list of float |           list of NaN |
-| `{fiber,psf,total}FluxErr` | list of float |           list of NaN |
-| `filterNames`              | list of str   |        list of `none` |
+| Keyword                    | Datatype       |            Mask value |
+|----------------------------|----------------|----------------------:|
+| `catId`                    | int            |                  9000 |
+| `tract`                    | int            |                    -1 |
+| `patch`                    | str            |               `-1,-1` |
+| `objId`                    | int64          | Hashed 64-bit integer |
+| `ra`                       | float          |                   -99 |
+| `dec`                      | float          |                   -99 |
+| `pmRa`                     | float          |                   0.0 |
+| `pmDec`                    | float          |                   0.0 |
+| `parallax`                 | float          |                1.0e-7 |
+| `proposalId`               | str            |              `masked` |
+| `obCode`                   | str            |              `masked` |
+| `pfiNominal`               | (float, float) |            (NaN, NaN) |
+| `pfiCenter`                | (float, float) |            (NaN, NaN) |
+| `{fiber,psf,total}Flux`    | list of float  |           list of NaN |
+| `{fiber,psf,total}FluxErr` | list of float  |           list of NaN |
+| `filterNames`              | list of str    |        list of `none` |
 
 ## Installation
 

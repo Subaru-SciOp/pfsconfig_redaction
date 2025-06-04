@@ -149,6 +149,8 @@ def redact(
             "parallax": 1.0e-7,
             "proposalId": "masked",
             "obCode": "masked",
+            "pfiNominal": (np.nan, np.nan),
+            "pfiCenter": (np.nan, np.nan),
         }
 
     if flux_keys is None:
