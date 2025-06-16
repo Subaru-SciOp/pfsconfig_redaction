@@ -26,13 +26,57 @@ The following values are masked as follows when a fiber is assigned for a `SCIEN
 
 ## Installation
 
+**Note**: It is highly recommended to use a virtual environment to avoid conflicts with system packages.
+
+### Standard Installation
+
 ```console
 git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
 cd pfsconfig_redaction
+
+# Create and activate virtual environment (recommended)
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements.txt
-python3 -m pip install -e .
+
+# Install the package
+pip install .
+```
+
+### Development Installation
+
+For development purposes, install in editable mode:
+
+```console
+git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
+cd pfsconfig_redaction
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install in editable mode
+pip install -e .
+```
+
+### Using uv (Recommended)
+
+If you have [uv](https://docs.astral.sh/uv/) installed (automatically manages virtual environments):
+
+```console
+git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
+cd pfsconfig_redaction
+uv sync
+```
+
+### Legacy Installation (if needed)
+
+For environments requiring explicit requirements.txt:
+
+```console
+git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
+cd pfsconfig_redaction
+pip install -r requirements.txt
+pip install .
 ```
 
 ## Usage
