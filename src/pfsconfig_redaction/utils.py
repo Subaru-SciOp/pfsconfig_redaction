@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import copy
-import hashlib
 import logging
 from dataclasses import dataclass
 from pprint import pformat
@@ -32,18 +31,14 @@ class RedactedPfsConfigDataClass:
         The proposal ID associated with the PfsConfig.
     pfs_config : PfsConfig
         The redacted PfsConfig object.
-    cpfsf_id : int
-        The cpfsf_id associated with the PfsConfig.
     """
 
     proposal_id: str
     pfs_config: PfsConfig
-    cpfsf_id: int
 
 
 def redact(
     pfs_config: PfsConfig,
-    cpfsf_id0: int = 0,
     dict_group_id: dict[str, str] | None = None,
     cat_id: int = 9000,
     dict_mask: dict[str, Union[int, str, float]] | None = None,
@@ -133,8 +128,6 @@ def redact(
     # Initialize the list to hold redacted PfsConfig objects
     redacted_pfsconfigs: list[RedactedPfsConfigDataClass] = []
 
-    cpfsf_id = cpfsf_id0
-
     for i, propid_work in enumerate(proposal_ids):
         # skip if the proposal ID is "N/A"
         if propid_work == "N/A":
@@ -156,9 +149,6 @@ def redact(
 
         n_fiber_masked = 0
         n_fiber_unmasked = 0
-
-        # Increment cpfsf_id
-        cpfsf_id += 1
 
         # Create a copy of the original PfsConfig to redact
         redacted_cfg = copy.deepcopy(pfs_config)
@@ -213,9 +203,7 @@ def redact(
             )
 
         redacted_pfsconfigs.append(
-            RedactedPfsConfigDataClass(
-                proposal_id=propid_work, pfs_config=redacted_cfg, cpfsf_id=cpfsf_id
-            )
+            RedactedPfsConfigDataClass(proposal_id=propid_work, pfs_config=redacted_cfg)
         )
 
     return redacted_pfsconfigs

@@ -60,7 +60,6 @@ redacted_pfsconfigs = pfsconfig_redaction.redact(
         "S25A-000QF": "o25103",
         "S25A-034QF": "o25188",
     },
-    cpfsf_id0=0,
 )
 
 for i, redacted_pfsconfig in enumerate(redacted_pfsconfigs):
