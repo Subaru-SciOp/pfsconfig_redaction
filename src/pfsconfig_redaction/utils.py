@@ -53,8 +53,6 @@ def redact(
     ----------
     pfs_config : PfsConfig
         The PfsConfig object to be redacted.
-    cpfsf_id0 : int, optional
-        The initial cpfsf_id to start from. Default is 0.
     dict_group_id : dict, optional
         A dictionary defining group IDs for different proposal IDs. An example
         is {"S24B-EN16": "o24016", "S25A": "o25103"}. If not provided, the `PROP-ID` header
@@ -113,8 +111,20 @@ def redact(
     if filter_val is None:
         filter_val = "none"
 
+    logger.info(f"Starting redaction of {pfs_config.header['FRAMEID']}")
+    logger.info(f"  pfsDesignId: {pfs_config.pfsDesignId:#016x}")
+    logger.info(f"  pfsDesignName: {pfs_config.designName}")
+
     orig_proposal_id = pfs_config.header.get("PROP-ID")
-    logger.info(f"Original proposal ID in the pfsConfig: {orig_proposal_id}")
+    logger.info(f"  Original proposal ID: {orig_proposal_id}")
+
+    n_fiber_science: int = np.sum(pfs_config.targetType == TargetType.SCIENCE)
+    n_fiber_sky: int = np.sum(pfs_config.targetType == TargetType.SKY)
+    n_fiber_fluxstd: int = np.sum(pfs_config.targetType == TargetType.FLUXSTD)
+    logger.info(f"  Number of fibers: {len(pfs_config.fiberId)}")
+    logger.info(f"  Number of SCIENCE fibers: {n_fiber_science}")
+    logger.info(f"  Number of SKY fibers: {n_fiber_sky}")
+    logger.info(f"  Number of FLUXSTD fibers: {n_fiber_fluxstd}")
 
     # Get unique pairs of proposal IDs and catalog IDs
     proposal_ids, catalog_ids = map(
@@ -123,7 +133,7 @@ def redact(
     # convert from np._str to str
     proposal_ids = [str(s) for s in proposal_ids]
 
-    logger.info(f"Unique proposal IDs in the pfsConfig: {pformat(proposal_ids)}")
+    logger.info(f"  Unique proposal IDs: {pformat(proposal_ids)}")
 
     # Initialize the list to hold redacted PfsConfig objects
     redacted_pfsconfigs: list[RedactedPfsConfigDataClass] = []
@@ -147,11 +157,12 @@ def redact(
         )
         n_fiber_work = np.sum(idx_propid)
 
-        n_fiber_masked = 0
-        n_fiber_unmasked = 0
-
         # Create a copy of the original PfsConfig to redact
         redacted_cfg = copy.deepcopy(pfs_config)
+
+        n_fiber_masked: int = 0
+        n_fiber_unmasked: int = 0
+        n_fiber_unmasked_science: int = 0
 
         for i_fiber in range(pfs_config.fiberId.size):
 
@@ -179,11 +190,24 @@ def redact(
 
                 n_fiber_masked += 1
             else:
+                if redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE:
+                    n_fiber_unmasked_science += 1
                 n_fiber_unmasked += 1
 
-        logger.info(f"Number of fibers for {propid_work}: {n_fiber_work}")
-        logger.info(f"Number of masked fibers for {propid_work}: {n_fiber_masked}")
-        logger.info(f"Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}")
+        logger.info(f"  Number of SCIENCE fibers for {propid_work}: {n_fiber_work}")
+        logger.info(f"  Number of masked fibers for {propid_work}: {n_fiber_masked}")
+        logger.info(
+            f"  Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}"
+        )
+        logger.info(f"  Number of unmasked SCIENCE fibers: {n_fiber_unmasked_science}")
+
+        if n_fiber_work != n_fiber_unmasked_science:
+            logger.error(
+                f"  Number of SCIENCE fibers for {propid_work} ({n_fiber_work}) does not match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
+            )
+            raise ValueError(
+                f"Number of SCIENCE fibers for {propid_work} ({n_fiber_work}) does not match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
+            )
 
         if dict_group_id is not None:
             # Check if the proposal ID is in the dictionary
@@ -191,15 +215,15 @@ def redact(
                 # Replace the proposal ID with the group ID
                 redacted_cfg.header["PROP-ID"] = dict_group_id[propid_work]
                 logger.info(
-                    f"Replacing the PROP-ID in the header with group ID {dict_group_id[propid_work]}"
+                    f"  Replacing the PROP-ID in the header with group ID {dict_group_id[propid_work]}"
                 )
             else:
                 logger.warning(
-                    f"Proposal ID {propid_work} not found in dict_group_id. No replacement made to PROP-ID in the header."
+                    f"  Proposal ID {propid_work} not found in dict_group_id. No replacement made to PROP-ID in the header."
                 )
         else:
             logger.warning(
-                "dict_group_id is None. No replacement made for PROP-ID in the header."
+                "  dict_group_id is None. No replacement made for PROP-ID in the header."
             )
 
         redacted_pfsconfigs.append(
