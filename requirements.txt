@@ -5,7 +5,7 @@ astropy
 astropy-iers-data
 numpy
 packaging
-pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git@eccd49dc24d4ea9e0fd982ac295add39760d1bce
+pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git
 pyerfa
 pyyaml
 scipy
