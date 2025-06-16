@@ -96,15 +96,7 @@ input_file = "PFSF12361000.fits"
 frame_id_orig = fits.getheader(indir / input_file, ext=0)["FRAMEID"]
 pfs_config = PfsConfig.readFits(indir / input_file)
 
-redacted_pfsconfigs = pfsconfig_redaction.redact(
-    pfs_config,
-    dict_group_id={
-        "S24B-EN16": "o24016",
-        "S25A-042QN": "o25158",
-        "S25A-000QF": "o25103",
-        "S25A-034QF": "o25188",
-    },
-)
+redacted_pfsconfigs = pfsconfig_redaction.redact(pfs_config)
 
 for i, redacted_pfsconfig in enumerate(redacted_pfsconfigs):
     # Skip if proposal_id is "N/A"
