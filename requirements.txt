@@ -4,11 +4,12 @@
 astropy==6.0.1 ; python_full_version < '3.10'
 astropy==6.1.7 ; python_full_version == '3.10.*'
 astropy==7.1.0 ; python_full_version >= '3.11'
-astropy-iers-data==0.2025.6.2.0.38.23
+astropy-iers-data==0.2025.6.16.0.38.47
 numpy==1.26.4 ; python_full_version < '3.10'
-numpy==2.2.6 ; python_full_version >= '3.10'
+numpy==2.2.6 ; python_full_version == '3.10.*'
+numpy==2.3.0 ; python_full_version >= '3.11'
 packaging==25.0
-pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git@17debbaaa6bb58356cb021b967d366897fb5ebf6
+pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git@eccd49dc24d4ea9e0fd982ac295add39760d1bce
 pyerfa==2.0.1.5
 pyyaml==6.0.2
 scipy==1.13.1 ; python_full_version < '3.10'
