@@ -41,50 +41,9 @@ class RedactedPfsConfigDataClass:
     cpfsf_id: int
 
 
-def generate_hashed_obj_id(
-    cat_id: int, obj_id: np.int64, secret_salt: str | None = None
-) -> np.int64:
-    """
-    Generate a hashed object ID based on the given catalog ID, object ID, and secret salt.
-
-    Parameters
-    ----------
-    cat_id : int
-        catId of the object in the original pfsConfig file.
-    obj_id : np.int64
-        objId of the object in the original pfsConfig file.
-    secret_salt : str, optional
-        A secret salt used to generate the hash. This should be a unique and
-        unpredictable value to ensure the security of the hash.
-        If not provided, a ValueError will be raised.
-
-    Returns
-    -------
-    np.int64
-        The hashed object ID, which is a 64-bit integer.
-    """
-    if secret_salt is None:
-        logger.error("secret_salt must be provided")
-        raise ValueError("secret_salt must be provided")
-    if not isinstance(secret_salt, str):
-        logger.error("secret_salt must be a string")
-        raise TypeError("secret_salt must be a string")
-
-    # Include the secret salt in the hash input
-    hash_input = f"{secret_salt}{cat_id}:{obj_id}".encode("utf-8")
-    hash_digest = hashlib.sha256(hash_input).digest()
-
-    # Convert the first 8 bytes of the hash to a 64-bit integer
-    value = int.from_bytes(hash_digest[:8], byteorder="little")
-    value = value % np.iinfo(np.int64).max
-
-    return value
-
-
 def redact(
     pfs_config: PfsConfig,
     cpfsf_id0: int = 0,
-    secret_salt: str | None = None,
     dict_group_id: dict[str, str] | None = None,
     cat_id: int = 9000,
     dict_mask: dict[str, Union[int, str, float]] | None = None,
@@ -101,10 +60,6 @@ def redact(
         The PfsConfig object to be redacted.
     cpfsf_id0 : int, optional
         The initial cpfsf_id to start from. Default is 0.
-    secret_salt : str, optional
-        A secret salt used to generate the hash. This should be a unique and
-        unpredictable value to ensure the security of the hash.
-        If not provided, a ValueError will be raised.
     dict_group_id : dict, optional
         A dictionary defining group IDs for different proposal IDs. An example
         is {"S24B-EN16": "o24016", "S25A": "o25103"}. If not provided, the `PROP-ID` header
@@ -128,13 +83,6 @@ def redact(
         A list of RedactedPfsConfigDataClass objects containing the redacted
         PfsConfig objects and their associated proposal IDs.
     """
-    if secret_salt is None:
-        logger.error("secret_salt must be provided")
-        raise ValueError("secret_salt must be provided")
-
-    if not isinstance(secret_salt, str):
-        logger.error("secret_salt must be a string")
-        raise TypeError("secret_salt must be a string")
 
     if dict_mask is None:
         # A dictionary defining keys to be masked and their mask values.
@@ -223,11 +171,7 @@ def redact(
                 and (redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE)
             ):
                 # Generate hashed object ID before masking catId
-                redacted_cfg.objId[i_fiber] = generate_hashed_obj_id(
-                    pfs_config.catId[i_fiber],
-                    pfs_config.objId[i_fiber],
-                    secret_salt=secret_salt,
-                )
+                redacted_cfg.objId[i_fiber] = int(-1 * pfs_config.fiberId[i_fiber])
 
                 # Mask values
                 for k, v in dict_mask.items():
@@ -263,7 +207,6 @@ def redact(
                 logger.warning(
                     f"Proposal ID {propid_work} not found in dict_group_id. No replacement made to PROP-ID in the header."
                 )
-                # raise KeyError(f"Proposal ID {propid_work} not found in dict_group_id.")
         else:
             logger.warning(
                 "dict_group_id is None. No replacement made for PROP-ID in the header."
