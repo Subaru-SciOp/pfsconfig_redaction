@@ -151,6 +151,7 @@ def redact(
             "obCode": "masked",
             "pfiNominal": (np.nan, np.nan),
             "pfiCenter": (np.nan, np.nan),
+            "targetType": TargetType.SCIENCE_MASKED,
         }
 
     if flux_keys is None:
