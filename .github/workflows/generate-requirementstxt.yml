@@ -30,7 +30,11 @@ jobs:
         run: uv python install
 
       - name: Generate requirements.txt
-        run: uv export --format=requirements.txt --no-hashes --no-dev --no-annotate > requirements.txt
+        run: |
+          uv export --format=requirements.txt --no-hashes --no-dev --no-annotate > requirements_temp.txt
+          # Remove version specifications (==x.x.x) to keep only package names
+          sed 's/==.*//' requirements_temp.txt > requirements.txt
+          rm requirements_temp.txt
 
       - name: Check if requirements.txt changed
         id: check-changes
