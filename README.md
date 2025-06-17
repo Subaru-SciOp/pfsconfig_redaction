@@ -111,4 +111,4 @@ for i, redacted_pfsconfig in enumerate(redacted_pfsconfigs):
     )
 ```
 
-The returned `redacted_pfsconfigs` is a list of `RedactedPfsConfig` objects, which has `proposal_id`, `cpfsf_id`, and `pfs_config` attributes. The `proposal_id` and `cpfsf_id` attributes are the proposal_id and cpfsf_id to be delivered. The `pfs_config` attribute is a `PfsConfig` object with the information masked.
+The returned `redacted_pfsconfigs` is a list of `RedactedPfsConfig` objects, which has `proposal_id` and `pfs_config` attributes. The `proposal_id` attribute is the proposal_id to be delivered. The `pfs_config` attribute is a `PfsConfig` object with the information masked.
