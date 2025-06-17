@@ -39,7 +39,6 @@ class RedactedPfsConfigDataClass:
 
 def redact(
     pfs_config: PfsConfig,
-    dict_group_id: dict[str, str] | None = None,
     cat_id: int = 9000,
     dict_mask: dict[str, Union[int, str, float]] | None = None,
     flux_keys: list[str] | None = None,
@@ -53,10 +52,6 @@ def redact(
     ----------
     pfs_config : PfsConfig
         The PfsConfig object to be redacted.
-    dict_group_id : dict, optional
-        A dictionary defining group IDs for different proposal IDs. An example
-        is {"S24B-EN16": "o24016", "S25A": "o25103"}. If not provided, the `PROP-ID` header
-        keyword will not be replaced.
     cat_id : int, optional
         The catalog ID to be used for masking. Default is 9000.
     dict_mask : dict, optional
@@ -207,23 +202,6 @@ def redact(
             )
             raise ValueError(
                 f"Number of SCIENCE fibers for {propid_work} ({n_fiber_work}) does not match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
-            )
-
-        if dict_group_id is not None:
-            # Check if the proposal ID is in the dictionary
-            if propid_work in dict_group_id:
-                # Replace the proposal ID with the group ID
-                redacted_cfg.header["PROP-ID"] = dict_group_id[propid_work]
-                logger.info(
-                    f"  Replacing the PROP-ID in the header with group ID {dict_group_id[propid_work]}"
-                )
-            else:
-                logger.warning(
-                    f"  Proposal ID {propid_work} not found in dict_group_id. No replacement made to PROP-ID in the header."
-                )
-        else:
-            logger.warning(
-                "  dict_group_id is None. No replacement made for PROP-ID in the header."
             )
 
         redacted_pfsconfigs.append(
