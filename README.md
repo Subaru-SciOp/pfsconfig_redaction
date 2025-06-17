@@ -84,16 +84,13 @@ pip install .
 ```python
 from pathlib import Path
 
-from astropy.io import fits
 from pfs.datamodel import PfsConfig
-
 import pfsconfig_redaction
 
 indir = Path("tmp")
 outdir = Path("tmp")
 input_file = "PFSF12361000.fits"
 
-frame_id_orig = fits.getheader(indir / input_file, ext=0)["FRAMEID"]
 pfs_config = PfsConfig.readFits(indir / input_file)
 
 redacted_pfsconfigs = pfsconfig_redaction.redact(pfs_config)
