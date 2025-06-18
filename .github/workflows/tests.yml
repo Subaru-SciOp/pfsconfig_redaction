@@ -1,0 +1,44 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run tests
+      run: uv run pytest tests/ -v --tb=short
+    
+    - name: Run linting with ruff
+      run: uv run ruff check src/
+      continue-on-error: true
+    
+    - name: Run code formatting check
+      run: |
+        echo "Checking code formatting..."
+        if ! uv run ruff format --check src/; then
+          echo "Code formatting issues found. Consider running 'uv run ruff format src/' to fix them."
+        fi
+      continue-on-error: true

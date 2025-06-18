@@ -121,10 +121,13 @@ def redact(
     logger.info(f"  Number of SKY fibers: {n_fiber_sky}")
     logger.info(f"  Number of FLUXSTD fibers: {n_fiber_fluxstd}")
 
-    # Get unique pairs of proposal IDs and catalog IDs
-    proposal_ids, catalog_ids = map(
-        list, zip(*set(zip(pfs_config.proposalId, pfs_config.catId)))
-    )
+    # Handle empty arrays case
+    if len(pfs_config.fiberId) == 0:
+        logger.info("  No fibers found, returning empty list")
+        return []
+
+    # Get unique proposal IDs only (not grouped by catId)
+    proposal_ids = list(set(pfs_config.proposalId))
     # convert from np._str to str
     proposal_ids = [str(s) for s in proposal_ids]
 
@@ -136,14 +139,15 @@ def redact(
     for i, propid_work in enumerate(proposal_ids):
         # skip if the proposal ID is "N/A"
         if propid_work == "N/A":
-            logger.info(
-                f"Ignoring the proposal ID N/A (input_catalog_id {catalog_ids[i]})"
-            )
+            logger.info("Ignoring the proposal ID N/A")
             continue
 
-        logger.info(
-            f"Processing proposal ID {propid_work} (input_catalog_id {catalog_ids[i]})"
-        )
+        logger.info(f"Processing proposal ID {propid_work}")
+
+        # Get and log the catIds associated with this proposal ID
+        catids_for_proposal = pfs_config.catId[pfs_config.proposalId == propid_work]
+        unique_catids = sorted(set(int(x) for x in catids_for_proposal))
+        logger.info(f"  Associated catIds: {unique_catids}")
 
         # Get the number of SCIENCE fibers for targets from this proposal ID
         idx_propid = np.logical_and(
@@ -185,7 +189,9 @@ def redact(
 
                 n_fiber_masked += 1
             else:
-                if redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE:
+                # Count unmasked SCIENCE fibers belonging to current proposal
+                if (redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE and 
+                    redacted_cfg.proposalId[i_fiber] == propid_work):
                     n_fiber_unmasked_science += 1
                 n_fiber_unmasked += 1
 
