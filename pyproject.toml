@@ -15,7 +15,6 @@ license = { text = "MIT" }
 
 [dependency-groups]
 dev = [
-  "black>=25.1.0",
   "ipython>=8.18.1",
   "pandas>=2.2.3",
   "pytest>=8.4.0",
@@ -30,3 +29,7 @@ build-backend = "setuptools.build_meta"
 # Restrict collection to tests/ so ad-hoc scripts at the repository root are ignored.
 testpaths = ["tests"]
 markers = ["slow: marks tests as slow"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
