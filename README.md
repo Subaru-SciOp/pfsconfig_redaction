@@ -93,14 +93,23 @@ cd pfsconfig_redaction
 uv sync
 ```
 
+Dependency versions are pinned in `uv.lock`, which is committed to the repository. To
+update the lockfile to the latest versions allowed by `pyproject.toml` and sync your
+environment to it:
+
+```console
+uv sync --upgrade
+```
+
+Commit the updated `uv.lock` so CI and other contributors pick up the same versions.
+
 ### Legacy Installation (if needed)
 
-For environments requiring explicit requirements.txt:
+For environments without uv:
 
 ```console
 git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
 cd pfsconfig_redaction
-pip install -r requirements.txt
 pip install .
 ```
 
