@@ -132,6 +132,76 @@ def simple_mock_pfs_config():
 
 
 @pytest.fixture
+def mock_pfs_config_dup_fluxstd():
+    """Create a mock PfsConfig containing FLUXSTD objects duplicated as SCIENCE targets.
+
+    Fibers 2 and 6 are flux standards that are also SCIENCE targets of an open-use
+    program, so they carry a proposalId instead of "N/A" (see issue #28). Fiber 3 is
+    an ordinary flux standard.
+
+    ==========  ==========  ============
+    fiberId     targetType  proposalId
+    ==========  ==========  ============
+    1           SCIENCE     S26A-999QF
+    2           FLUXSTD     S26A-999QF
+    3           FLUXSTD     N/A
+    4           SCIENCE     S26A-888QF
+    5           SKY         N/A
+    6           FLUXSTD     S26A-888QF
+    ==========  ==========  ============
+    """
+    n_fiber = 6
+    mock_config = Mock(spec=PfsConfig)
+
+    mock_config.header = {"FRAMEID": "PFSF99999999", "PROP-ID": "S26A-999QF"}
+    mock_config.pfsDesignId = 0x2061554FB4B4FF38
+    mock_config.designName = "dup_fluxstd_test"
+
+    mock_config.fiberId = np.arange(1, n_fiber + 1)
+    mock_config.targetType = np.array([
+        TargetType.SCIENCE,
+        TargetType.FLUXSTD,
+        TargetType.FLUXSTD,
+        TargetType.SCIENCE,
+        TargetType.SKY,
+        TargetType.FLUXSTD,
+    ])
+    # NOTE: string dtypes mirror the widths of the real pfsConfig FITS columns
+    # (proposalId: 10A, obCode: 45A). Letting numpy infer them would truncate the
+    # mask values, e.g. "masked" -> "maske".
+    mock_config.proposalId = np.array(
+        ["S26A-999QF", "S26A-999QF", "N/A", "S26A-888QF", "N/A", "S26A-888QF"],
+        dtype="U10",
+    )
+    mock_config.obCode = np.array(
+        [f"obcode_{i}" for i in range(1, n_fiber + 1)], dtype="U45"
+    )
+    mock_config.patch = np.array(["1,1"] * n_fiber, dtype="U16")
+
+    mock_config.catId = np.array([1000, 10358, 3006, 2000, 0, 10358])
+    mock_config.objId = np.array([10, 20, 30, 40, 50, 60])
+    mock_config.tract = np.arange(1, n_fiber + 1)
+    mock_config.ra = np.array([10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
+    mock_config.dec = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    mock_config.pmRa = np.linspace(0.1, 0.6, n_fiber)
+    mock_config.pmDec = np.linspace(0.01, 0.06, n_fiber)
+    mock_config.parallax = np.linspace(1e-6, 6e-6, n_fiber)
+    mock_config.pfiNominal = np.array([(float(i), float(i)) for i in range(n_fiber)])
+    mock_config.pfiCenter = np.array([(i + 0.1, i + 0.1) for i in range(n_fiber)])
+
+    mock_config.fiberFlux = np.arange(1.0, n_fiber * 3 + 1.0).reshape(n_fiber, 3)
+    mock_config.psfFlux = mock_config.fiberFlux + 0.1
+    mock_config.totalFlux = mock_config.fiberFlux + 0.2
+    mock_config.fiberFluxErr = mock_config.fiberFlux * 0.1
+    mock_config.psfFluxErr = mock_config.psfFlux * 0.1
+    mock_config.totalFluxErr = mock_config.totalFlux * 0.1
+
+    mock_config.filterNames = np.array([["g", "r", "i"]] * n_fiber)
+
+    return mock_config
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path):
     """Create a temporary directory for test outputs."""
     output_dir = tmp_path / "test_output"

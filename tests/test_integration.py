@@ -118,7 +118,7 @@ class TestIntegration:
         
         redacted_configs = pfsconfig_redaction.redact(
             pfs_config,
-            dict_mask=custom_dict_mask,
+            dict_mask_science=custom_dict_mask,
             flux_val=custom_flux_val,
             filter_val=custom_filter_val
         )
