@@ -95,12 +95,11 @@ uv sync
 
 ### Legacy Installation (if needed)
 
-For environments requiring explicit requirements.txt:
+For environments without uv:
 
 ```console
 git clone https://github.com/Subaru-SciOp/pfsconfig_redaction.git
 cd pfsconfig_redaction
-pip install -r requirements.txt
 pip install .
 ```
 
