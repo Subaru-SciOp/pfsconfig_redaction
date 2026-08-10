@@ -109,6 +109,42 @@ class TestIntegration:
                 assert np.all(np.isnan(redacted_pfs.fiberFlux[i]))
                 assert all(name == "none" for name in redacted_pfs.filterNames[i])
 
+    def test_unhandled_target_type_of_another_proposal_raises(self, drp_pfs_config):
+        """A fiber that no masking rule covers stops the redaction.
+
+        Only SCIENCE and FLUXSTD fibers have a rule. A fiber of another proposal
+        with any other targetType would otherwise be handed to the recipient with
+        its proposalId, obCode, coordinates and objId intact.
+        """
+        original = drp_pfs_config
+        i = np.flatnonzero(
+            (original.targetType == TargetType.SCIENCE) & (original.proposalId != "N/A")
+        )[0]
+        original.targetType[i] = TargetType.SUNSS_IMAGING
+
+        with pytest.raises(ValueError, match="targetType"):
+            pfsconfig_redaction.redact(original)
+
+    def test_unhandled_target_type_without_another_proposal_is_kept(
+        self, drp_pfs_config
+    ):
+        """The same fiber is fine when nobody else receives the file.
+
+        Fibers are only a problem when they have to be masked for someone, so a
+        file holding a single proposal is still redactable.
+        """
+        original = drp_pfs_config
+        only_proposal = original.proposalId[original.proposalId != "N/A"][0]
+        others = (original.proposalId != "N/A") & (original.proposalId != only_proposal)
+        original.proposalId[others] = only_proposal
+        i = np.flatnonzero(original.proposalId == only_proposal)[0]
+        original.targetType[i] = TargetType.SUNSS_IMAGING
+
+        results = pfsconfig_redaction.redact(original)
+
+        assert len(results) == 1
+        assert results[0].pfs_config.targetType[i] == TargetType.SUNSS_IMAGING
+
     def test_mask_value_wider_than_the_column_is_not_truncated(self, drp_pfs_config):
         """A mask value longer than the FITS column survives intact.
 

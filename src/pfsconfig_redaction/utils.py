@@ -34,6 +34,29 @@ class RedactedPfsConfigDataClass:
     pfs_config: PfsConfig
 
 
+def _target_type_name(target_type: int) -> str:
+    """
+    Return a readable name for a targetType value.
+
+    Values the installed datamodel does not know about are reported as-is, since
+    they are exactly the ones an operator needs to see.
+
+    Parameters
+    ----------
+    target_type : int
+        The targetType value to describe.
+
+    Returns
+    -------
+    str
+        The name of the target type, or the raw value if it is unknown.
+    """
+    try:
+        return TargetType(target_type).name
+    except ValueError:
+        return f"unknown ({int(target_type)})"
+
+
 def _widen_string_columns(
     pfs_config: PfsConfig, dict_mask: dict[str, int | str | float | tuple]
 ) -> None:
@@ -278,6 +301,20 @@ def redact(
 
                 n_fiber_masked_fluxstd += 1
                 n_fiber_masked += 1
+            elif is_other_proposal:
+                # NOTE: only SCIENCE and FLUXSTD have a masking rule. Letting any
+                # other target type fall through would hand this fiber to the
+                # recipient with the proposalId, obCode, coordinates and objId of
+                # another proposal intact, so refuse to produce a file at all.
+                message = (
+                    f"Fiber {redacted_cfg.fiberId[i_fiber]} belongs to proposal "
+                    f"{redacted_cfg.proposalId[i_fiber]} and has targetType "
+                    f"{_target_type_name(redacted_cfg.targetType[i_fiber])}, for "
+                    "which no masking rule is defined. Refusing to redact for "
+                    f"proposal {propid_work}."
+                )
+                logger.error(f"  {message}")
+                raise ValueError(message)
             else:
                 # Count unmasked SCIENCE fibers belonging to current proposal
                 if (

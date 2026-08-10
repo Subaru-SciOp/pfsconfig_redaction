@@ -29,10 +29,16 @@ class TestPerformance:
         )
         mock_config.targetType = target_types
 
-        # Generate proposal IDs
+        # Generate proposal IDs. Only SCIENCE fibers and the flux standards that
+        # are also SCIENCE targets of a programme carry a proposal association;
+        # sky fibers are always "N/A".
         proposal_base = [f"S25A-{i:03d}QF" for i in range(1, n_proposals + 1)]
         proposal_base.append("N/A")
-        proposal_ids = np.random.choice(proposal_base, size=n_fibers)
+        proposal_ids = np.where(
+            target_types == TargetType.SKY,
+            "N/A",
+            np.random.choice(proposal_base, size=n_fibers),
+        )
         mock_config.proposalId = proposal_ids
 
         # Generate other required data
