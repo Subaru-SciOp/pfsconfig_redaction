@@ -4,24 +4,29 @@ version = "0.1.0"
 description = "Redact information in pfsConfig (PFSF) files for raw data deliverty to PIs."
 authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
 dependencies = [
-    "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-    "astropy>=5.2",                                                    # required by pfs-datamodel
-    "numpy>=1.24.4",                                                   # required by pfs-datamodel
-    "scipy>=1.9.3",                                                    # required by pfs-datamodel
+  "astropy>=5.2",  # required by pfs-datamodel
+  "numpy>=1.24.4",  # required by pfs-datamodel
+  "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
+  "scipy>=1.9.3",  # required by pfs-datamodel
 ]
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 readme = "README.md"
 license = { text = "MIT" }
+
+[dependency-groups]
+dev = [
+  "black>=25.1.0",
+  "ipython>=8.18.1",
+  "pandas>=2.2.3",
+  "pytest>=8.4.0",
+  "ruff>=0.11.8",
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[dependency-groups]
-dev = [
-    "black>=25.1.0",
-    "ipython>=8.18.1",
-    "pandas>=2.2.3",
-    "pytest>=8.4.0",
-    "ruff>=0.11.8",
-]
+[tool.pytest.ini_options]
+# Restrict collection to tests/ so ad-hoc scripts at the repository root are ignored.
+testpaths = ["tests"]
+markers = ["slow: marks tests as slow"]

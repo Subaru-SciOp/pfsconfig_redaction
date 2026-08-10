@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import copy
+
 import pytest
 import numpy as np
 from pathlib import Path
@@ -108,7 +110,7 @@ class TestRedactFunction:
         result = redact(
             mock_pfs_config,
             cat_id=8000,
-            dict_mask=custom_dict_mask,
+            dict_mask_science=custom_dict_mask,
             flux_keys=custom_flux_keys,
             flux_val=custom_flux_val,
             filter_val=custom_filter_val
@@ -163,13 +165,139 @@ class TestRedactFunction:
         """Test redact function with None parameters uses defaults."""
         result = redact(
             mock_pfs_config,
-            dict_mask=None,
+            dict_mask_science=None,
+            dict_mask_fluxstd=None,
             flux_keys=None,
             flux_val=None,
             filter_val=None
         )
         
         assert isinstance(result, list)
+
+
+class TestFluxstdRedaction:
+    """Test masking of FLUXSTD objects duplicated as SCIENCE targets (issue #28)."""
+
+    OWNER = "S26A-999QF"
+    OTHER = "S26A-888QF"
+
+    # fiberId 2 is a flux standard that is also a SCIENCE target of OWNER
+    IDX_DUP_FLUXSTD = 1
+    # fiberId 3 is an ordinary flux standard with proposalId "N/A"
+    IDX_PLAIN_FLUXSTD = 2
+
+    @staticmethod
+    def _config_for(results, proposal_id):
+        """Return the redacted PfsConfig produced for a given proposal ID."""
+        matched = [r.pfs_config for r in results if r.proposal_id == proposal_id]
+        assert len(matched) == 1, f"expected exactly one config for {proposal_id}"
+        return matched[0]
+
+    def test_dup_fluxstd_kept_for_owner(self, mock_pfs_config_dup_fluxstd):
+        """The owning PI keeps the proposal association of its duplicated FLUXSTD."""
+        original = mock_pfs_config_dup_fluxstd
+        results = redact(original)
+
+        redacted = self._config_for(results, self.OWNER)
+        i = self.IDX_DUP_FLUXSTD
+
+        assert redacted.proposalId[i] == self.OWNER
+        assert redacted.obCode[i] == original.obCode[i]
+        assert redacted.targetType[i] == TargetType.FLUXSTD
+
+    def test_dup_fluxstd_masked_for_others(self, mock_pfs_config_dup_fluxstd):
+        """Other PIs only lose proposalId/obCode; the star stays usable as a standard."""
+        original = mock_pfs_config_dup_fluxstd
+        results = redact(original)
+
+        redacted = self._config_for(results, self.OTHER)
+        i = self.IDX_DUP_FLUXSTD
+
+        # The proposal association is removed ...
+        assert redacted.proposalId[i] == "N/A"
+        assert redacted.obCode[i] == "N/A"
+
+        # ... but everything needed for flux calibration is preserved.
+        assert redacted.targetType[i] == TargetType.FLUXSTD
+        assert redacted.catId[i] == original.catId[i]
+        assert redacted.objId[i] == original.objId[i]
+        assert redacted.ra[i] == original.ra[i]
+        assert redacted.dec[i] == original.dec[i]
+        assert redacted.tract[i] == original.tract[i]
+        assert redacted.patch[i] == original.patch[i]
+        assert np.array_equal(redacted.fiberFlux[i], original.fiberFlux[i])
+        assert np.array_equal(redacted.psfFlux[i], original.psfFlux[i])
+        assert np.array_equal(redacted.totalFlux[i], original.totalFlux[i])
+        assert list(redacted.filterNames[i]) == list(original.filterNames[i])
+
+    def test_plain_fluxstd_untouched(self, mock_pfs_config_dup_fluxstd):
+        """An ordinary FLUXSTD (proposalId == "N/A") is never masked."""
+        original = mock_pfs_config_dup_fluxstd
+        results = redact(original)
+
+        i = self.IDX_PLAIN_FLUXSTD
+        for redacted_config in results:
+            redacted = redacted_config.pfs_config
+            assert redacted.proposalId[i] == "N/A"
+            assert redacted.obCode[i] == original.obCode[i]
+            assert redacted.targetType[i] == TargetType.FLUXSTD
+            assert redacted.ra[i] == original.ra[i]
+            assert np.array_equal(redacted.fiberFlux[i], original.fiberFlux[i])
+
+    def test_science_still_fully_masked(self, mock_pfs_config_dup_fluxstd):
+        """SCIENCE fibers of other proposals keep being masked completely."""
+        results = redact(mock_pfs_config_dup_fluxstd)
+
+        redacted = self._config_for(results, self.OWNER)
+        i = 3  # fiberId 4: SCIENCE fiber belonging to OTHER
+
+        assert redacted.targetType[i] == TargetType.SCIENCE_MASKED
+        assert redacted.proposalId[i] == "masked"
+        assert redacted.obCode[i] == "masked"
+        assert redacted.catId[i] == 9000
+        assert redacted.ra[i] == -99
+        assert np.all(np.isnan(redacted.fiberFlux[i]))
+
+    def test_custom_dict_mask_fluxstd(self, mock_pfs_config_dup_fluxstd):
+        """A custom dict_mask_fluxstd is honoured (regression: used to raise)."""
+        results = redact(
+            mock_pfs_config_dup_fluxstd,
+            dict_mask_fluxstd={"proposalId": "REDACTED", "obCode": "REDACTED"},
+        )
+
+        redacted = self._config_for(results, self.OTHER)
+        assert redacted.proposalId[self.IDX_DUP_FLUXSTD] == "REDACTED"
+        assert redacted.obCode[self.IDX_DUP_FLUXSTD] == "REDACTED"
+
+    def test_fluxstd_count_mismatch_raises(self, mock_pfs_config_dup_fluxstd):
+        """A FLUXSTD count mismatch is caught on its own, not hidden by the SCIENCE count."""
+        original = mock_pfs_config_dup_fluxstd
+
+        # Corrupt the working copy so the owner's duplicated FLUXSTD is no longer
+        # counted as unmasked, while the SCIENCE counts stay consistent.
+        corrupted_copy = copy.deepcopy(original)
+        corrupted_copy.targetType = np.array([
+            TargetType.SCIENCE,
+            TargetType.SKY,      # was FLUXSTD for S26A-999QF
+            TargetType.FLUXSTD,
+            TargetType.SCIENCE,
+            TargetType.SKY,
+            TargetType.FLUXSTD,
+        ])
+
+        with patch('pfsconfig_redaction.utils.copy.deepcopy', return_value=corrupted_copy):
+            with pytest.raises(ValueError, match="Number of FLUXSTD fibers"):
+                redact(original)
+
+    def test_no_proposal_leaks_across_configs(self, mock_pfs_config_dup_fluxstd):
+        """No fiber of any type exposes a proposal ID other than the recipient's."""
+        results = redact(mock_pfs_config_dup_fluxstd)
+
+        for redacted_config in results:
+            redacted = redacted_config.pfs_config
+            recipient = redacted_config.proposal_id
+            for i in range(redacted.fiberId.size):
+                assert redacted.proposalId[i] in ("N/A", "masked", recipient)
 
 
 class TestRedactIntegration:

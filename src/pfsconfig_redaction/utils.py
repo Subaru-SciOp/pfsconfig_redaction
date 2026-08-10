@@ -4,7 +4,6 @@ import copy
 import logging
 from dataclasses import dataclass
 from pprint import pformat
-from typing import Union
 
 import numpy as np
 from pfs.datamodel import PfsConfig, TargetType
@@ -40,7 +39,8 @@ class RedactedPfsConfigDataClass:
 def redact(
     pfs_config: PfsConfig,
     cat_id: int = 9000,
-    dict_mask: dict[str, Union[int, str, float]] | None = None,
+    dict_mask_science: dict[str, int | str | float | tuple] | None = None,
+    dict_mask_fluxstd: dict[str, int | str | float | tuple] | None = None,
     flux_keys: list[str] | None = None,
     flux_val: float | None = None,
     filter_val: str | None = None,
@@ -48,15 +48,36 @@ def redact(
     """
     Redact the PfsConfig object by masking sensitive information.
 
+    One redacted PfsConfig is produced per proposal ID found in the input. For each
+    of them, fibers belonging to *other* proposals are masked according to their
+    target type:
+
+    - ``SCIENCE`` fibers are fully masked: target identity, coordinates, photometry
+      and filter names are all replaced, and ``targetType`` becomes
+      ``SCIENCE_MASKED``.
+    - ``FLUXSTD`` fibers are only stripped of their proposal association, i.e.
+      ``proposalId`` and ``obCode`` become ``"N/A"``. This covers flux standards
+      that are also targeted as SCIENCE objects by an open-use program. Their
+      ``catId``, ``objId``, coordinates and photometry are deliberately kept
+      because they are needed for flux calibration downstream, and ``targetType``
+      stays ``FLUXSTD``.
+
+    Fibers with ``proposalId == "N/A"`` (ordinary flux standards, sky fibers, ...)
+    are never masked.
+
     Parameters
     ----------
     pfs_config : PfsConfig
         The PfsConfig object to be redacted.
     cat_id : int, optional
         The catalog ID to be used for masking. Default is 9000.
-    dict_mask : dict, optional
-        A dictionary defining keys to be masked and their mask values.
-        If not provided, a default dictionary will be used.
+    dict_mask_science : dict, optional
+        A dictionary defining keys to be masked and their mask values for SCIENCE
+        fibers of other proposals. If not provided, a default dictionary will be used.
+    dict_mask_fluxstd : dict, optional
+        A dictionary defining keys to be masked and their mask values for FLUXSTD
+        fibers of other proposals. If not provided, ``proposalId`` and ``obCode``
+        are masked with ``"N/A"``.
     flux_keys : list, optional
         A list of keys for flux values to be masked. Default is a list of
         ["fiberFlux", "psfFlux", "totalFlux", "fiberFluxErr", "psfFluxErr", "totalFluxErr"].
@@ -72,9 +93,10 @@ def redact(
         PfsConfig objects and their associated proposal IDs.
     """
 
-    if dict_mask is None:
-        # A dictionary defining keys to be masked and their mask values.
-        dict_mask = {
+    if dict_mask_science is None:
+        # A dictionary defining keys to be masked and their mask values
+        # for SCIENCE fibers belonging to other proposals.
+        dict_mask_science = {
             "catId": cat_id,
             "tract": -1,
             "patch": "-1,-1",
@@ -88,6 +110,15 @@ def redact(
             "pfiNominal": (np.nan, np.nan),
             "pfiCenter": (np.nan, np.nan),
             "targetType": TargetType.SCIENCE_MASKED,
+        }
+
+    if dict_mask_fluxstd is None:
+        # FLUXSTD objects duplicated as SCIENCE targets of another proposal only
+        # lose their proposal association; everything else is kept so that they
+        # remain usable as flux standards.
+        dict_mask_fluxstd = {
+            "proposalId": "N/A",
+            "obCode": "N/A",
         }
 
     if flux_keys is None:
@@ -150,31 +181,45 @@ def redact(
         logger.info(f"  Associated catIds: {unique_catids}")
 
         # Get the number of SCIENCE fibers for targets from this proposal ID
-        idx_propid = np.logical_and(
+        idx_propid_science = np.logical_and(
             pfs_config.proposalId == propid_work,
             pfs_config.targetType == TargetType.SCIENCE,
         )
-        n_fiber_work = np.sum(idx_propid)
+        n_fiber_work_science = np.sum(idx_propid_science)
+
+        # Get the number of FLUXSTD fibers for targets from this proposal ID
+        idx_propid_fluxstd = np.logical_and(
+            pfs_config.proposalId == propid_work,
+            pfs_config.targetType == TargetType.FLUXSTD,
+        )
+        n_fiber_work_fluxstd = np.sum(idx_propid_fluxstd)
 
         # Create a copy of the original PfsConfig to redact
         redacted_cfg = copy.deepcopy(pfs_config)
 
+        n_fiber_masked_science: int = 0
+        n_fiber_masked_fluxstd: int = 0
         n_fiber_masked: int = 0
+
         n_fiber_unmasked: int = 0
         n_fiber_unmasked_science: int = 0
+        n_fiber_unmasked_fluxstd: int = 0
 
         for i_fiber in range(pfs_config.fiberId.size):
 
-            if (
-                (redacted_cfg.proposalId[i_fiber] != "N/A")
-                and (redacted_cfg.proposalId[i_fiber] != propid_work)
-                and (redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE)
+            # Fibers assigned to a proposal other than the one being processed
+            is_other_proposal = (redacted_cfg.proposalId[i_fiber] != "N/A") and (
+                redacted_cfg.proposalId[i_fiber] != propid_work
+            )
+
+            if is_other_proposal and (
+                redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE
             ):
                 # Generate hashed object ID before masking catId
                 redacted_cfg.objId[i_fiber] = int(-1 * pfs_config.fiberId[i_fiber])
 
                 # Mask values
-                for k, v in dict_mask.items():
+                for k, v in dict_mask_science.items():
                     getattr(redacted_cfg, k)[i_fiber] = v
 
                 # NOTE: keep the number of elements for flux and filter information
@@ -182,33 +227,75 @@ def redact(
                     val_mask = np.full_like(getattr(redacted_cfg, k)[i_fiber], flux_val)
                     getattr(redacted_cfg, k)[i_fiber] = val_mask
 
-                filter_mask = [
-                    filter_val for _ in getattr(redacted_cfg, "filterNames")[i_fiber]
-                ]
-                getattr(redacted_cfg, "filterNames")[i_fiber] = filter_mask
+                filter_mask = [filter_val for _ in redacted_cfg.filterNames[i_fiber]]
+                redacted_cfg.filterNames[i_fiber] = filter_mask
 
+                n_fiber_masked_science += 1
+                n_fiber_masked += 1
+            elif is_other_proposal and (
+                redacted_cfg.targetType[i_fiber] == TargetType.FLUXSTD
+            ):
+                # Mask values for FLUXSTD fibers
+                for k, v in dict_mask_fluxstd.items():
+                    getattr(redacted_cfg, k)[i_fiber] = v
+
+                n_fiber_masked_fluxstd += 1
                 n_fiber_masked += 1
             else:
                 # Count unmasked SCIENCE fibers belonging to current proposal
-                if (redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE and 
-                    redacted_cfg.proposalId[i_fiber] == propid_work):
+                if (
+                    redacted_cfg.targetType[i_fiber] == TargetType.SCIENCE
+                    and redacted_cfg.proposalId[i_fiber] == propid_work
+                ):
                     n_fiber_unmasked_science += 1
+                # Count unmasked FLUXSTD fibers belonging to current proposal
+                elif (
+                    redacted_cfg.targetType[i_fiber] == TargetType.FLUXSTD
+                    and redacted_cfg.proposalId[i_fiber] == propid_work
+                ):
+                    n_fiber_unmasked_fluxstd += 1
                 n_fiber_unmasked += 1
 
-        logger.info(f"  Number of SCIENCE fibers for {propid_work}: {n_fiber_work}")
+        logger.info(
+            f"  Number of SCIENCE fibers for {propid_work}: {n_fiber_work_science}"
+        )
+        logger.info(
+            f"  Number of FLUXSTD fibers for {propid_work}: {n_fiber_work_fluxstd}"
+        )
+
+        logger.info(
+            f"  Number of masked SCIENCE fibers for {propid_work}: {n_fiber_masked_science}"
+        )
+        logger.info(
+            f"  Number of masked FLUXSTD fibers for {propid_work}: {n_fiber_masked_fluxstd}"
+        )
+
         logger.info(f"  Number of masked fibers for {propid_work}: {n_fiber_masked}")
+
+        logger.info(f"  Number of unmasked SCIENCE fibers: {n_fiber_unmasked_science}")
+        logger.info(f"  Number of unmasked FLUXSTD fibers: {n_fiber_unmasked_fluxstd}")
+
         logger.info(
             f"  Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}"
         )
-        logger.info(f"  Number of unmasked SCIENCE fibers: {n_fiber_unmasked_science}")
 
-        if n_fiber_work != n_fiber_unmasked_science:
-            logger.error(
-                f"  Number of SCIENCE fibers for {propid_work} ({n_fiber_work}) does not match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
+        # NOTE: check SCIENCE and FLUXSTD separately. Comparing the sums would let a
+        # deficit in one target type be cancelled out by a surplus in the other.
+        mismatches: list[str] = []
+        if n_fiber_work_science != n_fiber_unmasked_science:
+            mismatches.append(
+                f"Number of SCIENCE fibers for {propid_work} ({n_fiber_work_science}) does not "
+                f"match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
             )
-            raise ValueError(
-                f"Number of SCIENCE fibers for {propid_work} ({n_fiber_work}) does not match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
+        if n_fiber_work_fluxstd != n_fiber_unmasked_fluxstd:
+            mismatches.append(
+                f"Number of FLUXSTD fibers for {propid_work} ({n_fiber_work_fluxstd}) does not "
+                f"match the number of unmasked FLUXSTD fibers ({n_fiber_unmasked_fluxstd})."
             )
+        if mismatches:
+            message = " ".join(mismatches)
+            logger.error(f"  {message}")
+            raise ValueError(message)
 
         redacted_pfsconfigs.append(
             RedactedPfsConfigDataClass(proposal_id=propid_work, pfs_config=redacted_cfg)
