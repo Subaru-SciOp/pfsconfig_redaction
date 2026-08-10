@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import copy
 import logging
 from dataclasses import dataclass
@@ -177,7 +175,7 @@ def redact(
 
         # Get and log the catIds associated with this proposal ID
         catids_for_proposal = pfs_config.catId[pfs_config.proposalId == propid_work]
-        unique_catids = sorted(set(int(x) for x in catids_for_proposal))
+        unique_catids = sorted({int(x) for x in catids_for_proposal})
         logger.info(f"  Associated catIds: {unique_catids}")
 
         # Get the number of SCIENCE fibers for targets from this proposal ID
@@ -206,7 +204,6 @@ def redact(
         n_fiber_unmasked_fluxstd: int = 0
 
         for i_fiber in range(pfs_config.fiberId.size):
-
             # Fibers assigned to a proposal other than the one being processed
             is_other_proposal = (redacted_cfg.proposalId[i_fiber] != "N/A") and (
                 redacted_cfg.proposalId[i_fiber] != propid_work
