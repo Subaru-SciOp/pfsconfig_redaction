@@ -108,7 +108,7 @@ class TestLargeInputs:
 
         # Filter names
         filter_names = ["g", "r", "i", "z", "y"]
-        mock_config.filterNames = np.array([filter_names for _ in range(n_fibers)])
+        mock_config.filterNames = [list(filter_names) for _ in range(n_fibers)]
 
         return mock_config
 

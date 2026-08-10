@@ -89,9 +89,13 @@ class TestRedactFunction:
         )
 
         # Add filter attributes
-        mock_config.filterNames = np.array(
-            [["g", "r"], ["r", "i"], ["i", "z"], ["z", "y"], ["g", "i"]]
-        )
+        mock_config.filterNames = [
+            ["g", "r"],
+            ["r", "i"],
+            ["i", "z"],
+            ["z", "y"],
+            ["g", "i"],
+        ]
 
         return mock_config
 
@@ -108,12 +112,17 @@ class TestRedactFunction:
         assert "S25A-002QF" in proposal_ids
         assert "N/A" not in proposal_ids
 
-    @patch("pfsconfig_redaction.utils.copy.deepcopy")
-    def test_redact_custom_parameters(self, mock_deepcopy, mock_pfs_config):
+    def test_redact_custom_parameters(self, mock_pfs_config):
         """Test redact function with custom parameters."""
-        mock_deepcopy.return_value = mock_pfs_config
-
-        custom_dict_mask = {"catId": 8000, "ra": -88, "dec": -88}
+        # NOTE: proposalId and obCode have to be in any mask dictionary; redact()
+        # refuses to hand out a config that still carries them.
+        custom_dict_mask = {
+            "catId": 8000,
+            "ra": -88,
+            "dec": -88,
+            "proposalId": "masked",
+            "obCode": "masked",
+        }
         custom_flux_keys = ["fiberFlux", "psfFlux"]
         custom_flux_val = -999.0
         custom_filter_val = "masked"
@@ -140,8 +149,13 @@ class TestRedactFunction:
         assert isinstance(result, list)
         assert len(result) == 0  # No valid proposal IDs to process
 
-    def test_redact_fiber_count_validation(self, mock_pfs_config):
-        """Test that fiber count validation works correctly."""
+    def test_masking_that_misses_a_fiber_is_caught(self, mock_pfs_config):
+        """A fiber that should have been masked but was not stops the redaction.
+
+        The working copy is corrupted so that the masking loop does not recognise
+        the fiber as belonging to another proposal and skips it. The verification
+        derives what had to be masked from the original config, so it notices.
+        """
         # Create a corrupted copy where targetType gets modified during deepcopy
         # to simulate a scenario where counts don't match
         corrupted_template = Mock(spec=PfsConfig)
@@ -200,7 +214,7 @@ class TestRedactFunction:
                 "pfsconfig_redaction.utils.copy.deepcopy",
                 side_effect=lambda _: real_deepcopy(corrupted_template),
             ),
-            pytest.raises(ValueError, match="Number of SCIENCE fibers"),
+            pytest.raises(ValueError, match="ra was not masked"),
         ):
             redact(mock_pfs_config)
 
@@ -312,8 +326,8 @@ class TestFluxstdRedaction:
         assert redacted.proposalId[self.IDX_DUP_FLUXSTD] == "REDACTED"
         assert redacted.obCode[self.IDX_DUP_FLUXSTD] == "REDACTED"
 
-    def test_fluxstd_count_mismatch_raises(self, mock_pfs_config_dup_fluxstd):
-        """A FLUXSTD count mismatch is caught on its own, not hidden by the SCIENCE count."""
+    def test_masking_that_misses_a_fluxstd_is_caught(self, mock_pfs_config_dup_fluxstd):
+        """A FLUXSTD is checked on its own, not folded into the SCIENCE fibers."""
         original = mock_pfs_config_dup_fluxstd
 
         # Corrupt the working copy so the owner's duplicated FLUXSTD is no longer
@@ -339,7 +353,7 @@ class TestFluxstdRedaction:
                 "pfsconfig_redaction.utils.copy.deepcopy",
                 side_effect=lambda _: real_deepcopy(corrupted_template),
             ),
-            pytest.raises(ValueError, match="Number of FLUXSTD fibers"),
+            pytest.raises(ValueError, match="obCode was not masked"),
         ):
             redact(original)
 
