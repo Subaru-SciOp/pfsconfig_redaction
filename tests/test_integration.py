@@ -101,12 +101,53 @@ class TestIntegration:
                 assert redacted_pfs.targetType[i] == TargetType.SCIENCE_MASKED
                 assert redacted_pfs.proposalId[i] == "masked"
                 assert redacted_pfs.obCode[i] == "masked"
+                assert redacted_pfs.patch[i] == "-1,-1"
                 assert redacted_pfs.catId[i] == 9000
                 assert redacted_pfs.objId[i] == -original.fiberId[i]
                 assert redacted_pfs.ra[i] == -99
                 assert redacted_pfs.dec[i] == -99
                 assert np.all(np.isnan(redacted_pfs.fiberFlux[i]))
                 assert all(name == "none" for name in redacted_pfs.filterNames[i])
+
+    def test_mask_value_wider_than_the_column_is_not_truncated(self, drp_pfs_config):
+        """A mask value longer than the FITS column survives intact.
+
+        The string columns of a pfsConfig are fixed width (patch is 3A, so the
+        numpy array is <U3), and assigning a longer value into such an array
+        truncates it without warning: "-1,-1" would be stored as "-1,". The
+        redacted file has to carry the documented mask value instead.
+        """
+        original = drp_pfs_config
+        long_ob_code = "x" * 60  # obCode is 45A in a real file
+
+        assert original.patch.dtype.itemsize // 4 < len("-1,-1")
+        assert original.obCode.dtype.itemsize // 4 < len(long_ob_code)
+
+        redacted_configs = pfsconfig_redaction.redact(
+            original,
+            dict_mask_science={
+                "patch": "-1,-1",
+                "obCode": long_ob_code,
+                "targetType": TargetType.SCIENCE_MASKED,
+            },
+        )
+
+        for redacted_config in redacted_configs:
+            redacted_pfs = redacted_config.pfs_config
+            to_mask = science_fibers_of_other_proposals(
+                original, redacted_config.proposal_id
+            )
+
+            assert to_mask.size > 0, "the sample must contain fibers to mask"
+
+            for i in to_mask:
+                assert redacted_pfs.patch[i] == "-1,-1"
+                assert redacted_pfs.obCode[i] == long_ob_code
+
+            # Widening the column must leave every other fiber alone.
+            for i in np.flatnonzero(original.proposalId == "N/A"):
+                assert redacted_pfs.patch[i] == original.patch[i]
+                assert redacted_pfs.obCode[i] == original.obCode[i]
 
     def test_custom_masking_parameters(self, drp_pfs_config):
         """Test redaction with custom masking parameters."""
