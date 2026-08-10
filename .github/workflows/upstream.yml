@@ -1,0 +1,54 @@
+name: Upstream
+
+# pfs-datamodel is a git dependency that is deliberately not pinned: deliveries
+# use whatever is current. uv.lock does pin it, so the Tests workflow answers
+# "does the code work against the versions we recorded", not "does it still work
+# against what a delivery will actually install".
+#
+# This workflow answers the second question. It resolves everything afresh with
+# --upgrade, so a breaking change upstream shows up here rather than in the
+# middle of preparing a delivery.
+on:
+  schedule:
+    # Mondays, 21:00 UTC (Tuesday 06:00 JST), so a failure is waiting at the
+    # start of the week rather than arriving mid-delivery.
+    - cron: "0 21 * * 1"
+  # Run it by hand before a delivery, from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  test-against-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v9.0.0
+      with:
+        version: "latest"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install the latest of every dependency
+      run: uv sync --dev --upgrade
+
+    - name: Report what was resolved
+      run: |
+        echo "pfs-datamodel resolved to:"
+        # NOTE: the name appears three times in the lock, twice as a dependency
+        # of something else. Only the package block carries a git source.
+        grep -A2 'name = "pfs-datamodel"' uv.lock | grep 'source = { git'
+
+    - name: Run tests
+      run: uv run pytest tests/ -v --tb=short
+
+    # NOTE: the refreshed uv.lock is deliberately not committed. This workflow
+    # reports on the latest versions; deciding to move to them is a separate act,
+    # done with "uv sync --upgrade" locally and reviewed as a normal change.
