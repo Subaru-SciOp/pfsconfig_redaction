@@ -213,10 +213,12 @@ def redact(
         logger.info("  No fibers found, returning empty list")
         return []
 
-    # Get unique proposal IDs only (not grouped by catId)
-    proposal_ids = list(set(pfs_config.proposalId))
-    # convert from np._str to str
-    proposal_ids = [str(s) for s in proposal_ids]
+    # Get unique proposal IDs only (not grouped by catId), as plain str rather
+    # than np.str_.
+    # NOTE: sorted, because iterating a set of strings yields an order that
+    # varies with PYTHONHASHSEED. Two runs over the same file would otherwise
+    # produce their outputs and their logs in a different order.
+    proposal_ids = sorted(str(s) for s in set(pfs_config.proposalId))
 
     logger.info(f"  Unique proposal IDs: {pformat(proposal_ids)}")
 

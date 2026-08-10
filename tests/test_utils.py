@@ -140,12 +140,11 @@ class TestRedactFunction:
         assert isinstance(result, list)
         assert len(result) == 0  # No valid proposal IDs to process
 
-    @patch("pfsconfig_redaction.utils.copy.deepcopy")
-    def test_redact_fiber_count_validation(self, mock_deepcopy, mock_pfs_config):
+    def test_redact_fiber_count_validation(self, mock_pfs_config):
         """Test that fiber count validation works correctly."""
         # Create a corrupted copy where targetType gets modified during deepcopy
         # to simulate a scenario where counts don't match
-        corrupted_copy = Mock(spec=PfsConfig)
+        corrupted_template = Mock(spec=PfsConfig)
 
         # Copy all attributes from original
         for attr in [
@@ -175,9 +174,9 @@ class TestRedactFunction:
             "filterNames",
         ]:
             if hasattr(mock_pfs_config, attr):
-                setattr(corrupted_copy, attr, getattr(mock_pfs_config, attr))
+                setattr(corrupted_template, attr, getattr(mock_pfs_config, attr))
 
-        corrupted_copy.targetType = mock_pfs_config.targetType
+        corrupted_template.targetType = mock_pfs_config.targetType
 
         # Modify the corrupted copy so that the counts no longer match.
         # Original: S25A-002QF has 1 SCIENCE fiber (position 1)
@@ -187,13 +186,22 @@ class TestRedactFunction:
         # the targetType. A SCIENCE fiber turned into a SKY fiber of another
         # proposal is refused outright by redact(), and the count check under test
         # would never be reached.
-        corrupted_copy.proposalId = np.array(
+        corrupted_template.proposalId = np.array(
             ["S25A-001QF", "N/A", "N/A", "N/A", "S25A-001QF"]
         )
 
-        mock_deepcopy.return_value = corrupted_copy
+        # NOTE: redact() copies the config once per proposal, and the stand-in has
+        # to do the same. A shared object would carry the masking done for one
+        # proposal into the processing of the next.
+        real_deepcopy = copy.deepcopy
 
-        with pytest.raises(ValueError, match="Number of SCIENCE fibers"):
+        with (
+            patch(
+                "pfsconfig_redaction.utils.copy.deepcopy",
+                side_effect=lambda _: real_deepcopy(corrupted_template),
+            ),
+            pytest.raises(ValueError, match="Number of SCIENCE fibers"),
+        ):
             redact(mock_pfs_config)
 
     def test_redact_none_parameters(self, mock_pfs_config):
