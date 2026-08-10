@@ -5,11 +5,24 @@ import numpy as np
 import pytest
 from pfs.datamodel import PfsConfig, TargetType
 
+DATA_DIR = Path(__file__).parent / "data"
+
+# Synthetic samples committed under tests/data/. See tests/data/generate_samples.py
+# for what they contain and why they are not real observatory files.
+DRP_SAMPLE = DATA_DIR / "pfsConfig-0x0123456789abcdef-012345.fits"
+PFSF_SAMPLE = DATA_DIR / "PFSF01234500.fits"
+
 
 @pytest.fixture
-def sample_fits_path():
-    """Path to the sample FITS file for testing."""
-    return Path("tmp/PFSF12361000.fits")
+def drp_pfs_config():
+    """A pfsConfig read from the sample written by the DRP (no FRAMEID/PROP-ID)."""
+    return PfsConfig.readFits(DRP_SAMPLE)
+
+
+@pytest.fixture
+def pfsf_config():
+    """A pfsConfig read from the sample ingested at the summit (PFSF)."""
+    return PfsConfig.readFits(PFSF_SAMPLE)
 
 
 @pytest.fixture
