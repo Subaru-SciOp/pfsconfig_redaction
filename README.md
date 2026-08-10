@@ -4,7 +4,7 @@ A tool to mask information unrelated to a specific proposal ID in `pfsConfig`.
 
 ## `SCIENCE` objects
 
-The following values are masked as follows when a fiber is assigned for a `SCIENCE` object, i.e., `targetType == 1`, `proposalId != "N/A"` and `proposalId` is not the specific proposal under processed.
+The following values are masked as follows when a fiber is assigned for a `SCIENCE` object, i.e., `targetType == 1`, `proposalId != "N/A"` and `proposalId` is not the specific proposal being processed.
 
 | Keyword                    | Datatype       |     Mask value |
 |----------------------------|----------------|---------------:|
@@ -33,7 +33,7 @@ open-use program. Such a fiber appears with `targetType == 2` (`FLUXSTD`) but ca
 `proposalId` and `obCode` of that program, which must not be disclosed to the other PIs.
 
 When a fiber is assigned for a `FLUXSTD` object, i.e., `targetType == 2`, `proposalId != "N/A"`
-and `proposalId` is not the specific proposal under processed, only the proposal association
+and `proposalId` is not the specific proposal being processed, only the proposal association
 is removed.
 
 | Keyword      | Datatype | Mask value |
@@ -45,7 +45,7 @@ Everything else is **kept as is** — in particular `catId`, `objId`, `ra`, `dec
 the flux values and `filterNames` — because this information is required to use the object as
 a flux standard in the downstream calibration.
 
-For the PI of the proposal under processed, these fibers are left completely untouched, so the
+For the PI of the proposal being processed, these fibers are left completely untouched, so the
 `proposalId` and `obCode` of the duplicated flux standards are preserved. Ordinary flux
 standards (`proposalId == "N/A"`) are never masked.
 
