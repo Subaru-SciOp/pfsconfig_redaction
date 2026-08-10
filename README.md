@@ -29,10 +29,10 @@ The following values are masked as follows when a fiber is assigned for a `SCIEN
 ## `FLUXSTD` objects duplicated as `SCIENCE` targets
 
 A star can be observed as a flux standard while also being a `SCIENCE` target of an
-open-use program. Such a fiber appears with `targetType == 2` (`FLUXSTD`) but carries the
+open-use program. Such a fiber appears with `targetType == 3` (`FLUXSTD`) but carries the
 `proposalId` and `obCode` of that program, which must not be disclosed to the other PIs.
 
-When a fiber is assigned for a `FLUXSTD` object, i.e., `targetType == 2`, `proposalId != "N/A"`
+When a fiber is assigned for a `FLUXSTD` object, i.e., `targetType == 3`, `proposalId != "N/A"`
 and `proposalId` is not the specific proposal being processed, only the proposal association
 is removed.
 
@@ -48,6 +48,34 @@ a flux standard in the downstream calibration.
 For the PI of the proposal being processed, these fibers are left completely untouched, so the
 `proposalId` and `obCode` of the duplicated flux standards are preserved. Ordinary flux
 standards (`proposalId == "N/A"`) are never masked.
+
+## What the tool refuses to do
+
+Redaction fails rather than producing a file it cannot vouch for. Both checks stop
+everything: nothing is returned and no output is written.
+
+**A fiber no masking rule covers.** Only `SCIENCE` and `FLUXSTD` have a rule. A fiber
+of another proposal with any other `targetType` would otherwise be delivered with its
+`proposalId`, `obCode`, coordinates and `objId` intact, so it raises instead:
+
+```
+ValueError: Fiber 21 belongs to proposal S23A-QN901 and has targetType SUNSS_IMAGING,
+for which no masking rule is defined. Refusing to redact for proposal S23A-QN900.
+```
+
+A file holding a single proposal still redacts: a fiber only has to be masked when
+somebody else receives the file.
+
+**A result that does not hold up.** Every redacted config is read back and checked
+against the input before it is returned:
+
+1. every fiber that had to be masked holds the mask values;
+2. no fiber of another proposal still shows its original `proposalId` or `obCode`;
+3. the fibers that had to be left alone are untouched.
+
+Check 2 holds whatever the mask values are, so a custom `dict_mask_science` or
+`dict_mask_fluxstd` **must** mask `proposalId` and `obCode`; one that leaves either in
+place is refused.
 
 ## Installation
 

@@ -1,7 +1,7 @@
 [project]
 name = "pfsconfig_redaction"
 version = "0.1.0"
-description = "Redact information in pfsConfig (PFSF) files for raw data deliverty to PIs."
+description = "Redact information in pfsConfig (PFSF) files for raw data delivery to PIs."
 authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
 dependencies = [
   "astropy>=5.2",  # required by pfs-datamodel
@@ -20,6 +20,11 @@ dev = [
   "pytest>=8.4.0",
   "ruff>=0.11.8",
 ]
+
+[tool.setuptools.package-data]
+# NOTE: without this the marker is left out of the built distribution, and type
+# checkers go on treating the package as untyped.
+pfsconfig_redaction = ["py.typed"]
 
 [build-system]
 requires = ["setuptools", "wheel"]
