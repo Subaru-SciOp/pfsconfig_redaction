@@ -314,15 +314,22 @@ class TestFluxstdRedaction:
         # the targetType. Turning the fiber into a SKY fiber would leave it as a
         # SKY fiber of another proposal, which redact() now refuses outright, and
         # the count check under test would never be reached.
-        corrupted_copy = copy.deepcopy(original)
-        corrupted_copy.proposalId = np.array(
+        corrupted_template = copy.deepcopy(original)
+        corrupted_template.proposalId = np.array(
             ["S26A-999QF", "N/A", "N/A", "S26A-888QF", "N/A", "S26A-888QF"],
             dtype="U10",
         )
 
+        # NOTE: redact() copies the config once per proposal, and the stand-in has
+        # to do the same. Handing out one shared object leaves the masking done
+        # for the first proposal in place while the second is processed, which
+        # makes the test depend on the order the proposals happen to come out in.
+        real_deepcopy = copy.deepcopy
+
         with (
             patch(
-                "pfsconfig_redaction.utils.copy.deepcopy", return_value=corrupted_copy
+                "pfsconfig_redaction.utils.copy.deepcopy",
+                side_effect=lambda _: real_deepcopy(corrupted_template),
             ),
             pytest.raises(ValueError, match="Number of FLUXSTD fibers"),
         ):
