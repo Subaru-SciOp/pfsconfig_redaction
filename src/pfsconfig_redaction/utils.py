@@ -6,13 +6,11 @@ from pprint import pformat
 import numpy as np
 from pfs.datamodel import PfsConfig, TargetType
 
-# Basic configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-
-# Get a logger for your module
+# NOTE: no logging.basicConfig() here. Calling it at import time would set the
+# level and install a handler on the root logger of whatever imports this
+# package, overriding the application's own configuration. Deciding where log
+# records go belongs to the application; see the README for a one-liner that
+# turns these messages on in a script.
 logger = logging.getLogger(__name__)
 
 
