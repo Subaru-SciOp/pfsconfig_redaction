@@ -44,6 +44,18 @@ class TestImports:
         # Check that exported functions are accessible
         assert hasattr(pfsconfig_redaction, "redact")
 
+    def test_version_is_reported(self):
+        """The package exposes the version setuptools_scm derived from the tags.
+
+        The exact number depends on the checkout, so only assert that a real
+        version was read from the installed metadata rather than the fallback.
+        """
+        import pfsconfig_redaction
+
+        assert "__version__" in pfsconfig_redaction.__all__
+        assert isinstance(pfsconfig_redaction.__version__, str)
+        assert pfsconfig_redaction.__version__ != "0.0.0+unknown"
+
     def test_dependencies_available(self):
         """Test that all required dependencies are available."""
         try:

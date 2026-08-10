@@ -1,6 +1,7 @@
 [project]
 name = "pfsconfig_redaction"
-version = "0.1.0"
+# NOTE: derived from the git tags by setuptools_scm, see [tool.setuptools_scm].
+dynamic = ["version"]
 description = "Redact information in pfsConfig (PFSF) files for raw data delivery to PIs."
 authors = [{ name = "Masato Onodera", email = "monodera@naoj.org" }]
 dependencies = [
@@ -27,8 +28,14 @@ dev = [
 pfsconfig_redaction = ["py.typed"]
 
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+# The version comes from the git tags: a build at a tag gets that version, a build
+# between tags gets a development version derived from the last tag, so no version
+# number has to be edited by hand. Defaults are fine; the table must still be present
+# for setuptools_scm to take over the version.
 
 [tool.pytest.ini_options]
 # Restrict collection to tests/ so ad-hoc scripts at the repository root are ignored.

@@ -170,6 +170,31 @@ cd pfsconfig_redaction
 pip install .
 ```
 
+## Versioning
+
+The version is not written down in `pyproject.toml`; it is derived from the git tags by
+[setuptools_scm](https://setuptools-scm.readthedocs.io/) when the package is built, and
+is readable from the installed package:
+
+```python
+import pfsconfig_redaction
+
+print(pfsconfig_redaction.__version__)
+```
+
+A build made at a tag reports that tag (`0.2.0`), and a build made between tags reports
+a development version derived from the last one (`0.2.1.dev4+g1a7ae2b1`). Releasing is
+therefore a matter of tagging:
+
+```console
+git tag -a v0.3.0 -m "Release v0.3.0"
+git push origin v0.3.0
+```
+
+Because the version comes from the repository, a build needs the tags to be present: a
+shallow clone without them, or an unpacked source archive with no `.git` at all, cannot
+report the right number. This is why the CI workflows check out with `fetch-depth: 0`.
+
 ## Usage
 
 ```python
