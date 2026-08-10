@@ -49,6 +49,35 @@ For the PI of the proposal being processed, these fibers are left completely unt
 `proposalId` and `obCode` of the duplicated flux standards are preserved. Ordinary flux
 standards (`proposalId == "N/A"`) are never masked.
 
+## Known limitation: fibers without a proposal ID are never masked
+
+Masking is driven entirely by `proposalId`. A fiber whose `proposalId` is `"N/A"` is
+left untouched in every delivered file, whatever its `targetType`.
+
+For sky fibers, ordinary flux standards, unassigned and engineering fibers that is
+exactly what is wanted. It becomes a problem if a `SCIENCE` fiber ever carries
+`"N/A"`: it is handed to every recipient with its target information intact —
+coordinates, `catId`, `objId`, photometry, and its `obCode`, which in practice embeds
+the object ID and the programme name.
+
+Taking a SCIENCE fiber of one proposal, setting its `proposalId` to `"N/A"` and
+redacting a file shared by three proposals:
+
+```
+fiber 1: targetType=1 (SCIENCE), proposalId="N/A"
+  delivered identically to S25A-001QF, S25A-002QN and S25B-003QF:
+  ra=149.6, objId=41135783716870001,
+  obCode="s_41135783716870001_sample_open_use_2025a_run"
+```
+
+Whether such fibers occur in real files has not been established. The tool does not
+flag them, because `"N/A"` is also the legitimate value for every fiber that genuinely
+belongs to nobody, and refusing on it would stop every ordinary delivery.
+
+If they turn out to be possible, this needs a decision: either those fibers get a
+masking rule of their own, or the tool should refuse them the way it refuses a
+`targetType` it has no rule for.
+
 ## What the tool refuses to do
 
 Redaction fails rather than producing a file it cannot vouch for. Both checks stop
