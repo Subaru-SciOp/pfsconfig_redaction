@@ -34,6 +34,39 @@ class RedactedPfsConfigDataClass:
     pfs_config: PfsConfig
 
 
+def _widen_string_columns(
+    pfs_config: PfsConfig, dict_mask: dict[str, int | str | float | tuple]
+) -> None:
+    """
+    Widen the fixed-width string columns that cannot hold their mask value.
+
+    The string columns of a pfsConfig are fixed width, and the width comes from
+    the data: ``patch`` is written as ``3A`` because the values are like "1,1",
+    so it is read back as a ``<U3`` array. Assigning a longer string into such
+    an array truncates it silently, which would store "-1,-1" as "-1,". The
+    column is grown first so that the documented mask value survives; it is
+    written back out at whatever width it then needs.
+
+    Parameters
+    ----------
+    pfs_config : PfsConfig
+        The PfsConfig object to be modified in place.
+    dict_mask : dict
+        The mask values that are going to be assigned into the columns.
+    """
+    for key, value in dict_mask.items():
+        if not isinstance(value, str):
+            continue
+        array = getattr(pfs_config, key)
+        dtype = getattr(array, "dtype", None)
+        if dtype is None or dtype.kind != "U":
+            continue
+        width = dtype.itemsize // np.dtype("U1").itemsize
+        if len(value) > width:
+            logger.debug(f"  Widening {key} from U{width} to U{len(value)}")
+            setattr(pfs_config, key, array.astype(f"U{len(value)}"))
+
+
 def redact(
     pfs_config: PfsConfig,
     cat_id: int = 9000,
@@ -196,6 +229,11 @@ def redact(
 
         # Create a copy of the original PfsConfig to redact
         redacted_cfg = copy.deepcopy(pfs_config)
+
+        # NOTE: do this before any assignment, otherwise numpy truncates the mask
+        # values to the width the column happened to have in the input file.
+        _widen_string_columns(redacted_cfg, dict_mask_science)
+        _widen_string_columns(redacted_cfg, dict_mask_fluxstd)
 
         n_fiber_masked_science: int = 0
         n_fiber_masked_fluxstd: int = 0
