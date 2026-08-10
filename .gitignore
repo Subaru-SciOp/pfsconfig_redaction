@@ -165,3 +165,9 @@ cython_debug/
 .DS_Store
 
 tmp/
+
+# uv
+uv.lock
+
+# VS Code
+.vscode/
