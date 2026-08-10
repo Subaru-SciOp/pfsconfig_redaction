@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 from pfs.datamodel import PfsConfig, TargetType
@@ -7,62 +5,67 @@ from pfs.datamodel import PfsConfig, TargetType
 import pfsconfig_redaction
 
 
-class TestIntegration:
-    """Integration tests for the complete pfsconfig_redaction workflow."""
-
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
+def science_fibers_of_other_proposals(original, recipient):
+    """Indices of the SCIENCE fibers ``recipient`` must not be able to see."""
+    return np.flatnonzero(
+        (original.targetType == TargetType.SCIENCE)
+        & (original.proposalId != "N/A")
+        & (original.proposalId != recipient)
     )
-    def test_complete_redaction_workflow(self, sample_fits_path, temp_output_dir):
+
+
+class TestIntegration:
+    """Integration tests for the complete pfsconfig_redaction workflow.
+
+    These run against the synthetic samples committed under tests/data/, which
+    reproduce the schema of the real files (see tests/data/generate_samples.py).
+    """
+
+    def test_complete_redaction_workflow(self, pfsf_config, temp_output_dir):
         """Test the complete redaction workflow from file to output."""
-        # Read the original PfsConfig
-        pfs_config = PfsConfig.readFits(sample_fits_path)
-        original_proposal_ids = np.unique(pfs_config.proposalId)
+        expected_proposal_ids = {
+            str(pid) for pid in np.unique(pfsf_config.proposalId) if pid != "N/A"
+        }
 
-        # Perform redaction
-        redacted_configs = pfsconfig_redaction.redact(pfs_config)
+        redacted_configs = pfsconfig_redaction.redact(pfsf_config)
 
-        # Verify basic properties
-        assert isinstance(redacted_configs, list)
-        assert len(redacted_configs) > 0
+        assert {config.proposal_id for config in redacted_configs} == (
+            expected_proposal_ids
+        )
 
-        # Verify that we get one result per unique proposal ID (excluding N/A)
-        expected_proposal_ids = [pid for pid in original_proposal_ids if pid != "N/A"]
-        result_proposal_ids = [config.proposal_id for config in redacted_configs]
-
-        assert len(redacted_configs) == len(expected_proposal_ids)
-        assert set(result_proposal_ids) == set(expected_proposal_ids)
-
-        # Test writing redacted configs to files
         for redacted_config in redacted_configs:
-            proposal_id = redacted_config.proposal_id
             output_file = (
-                temp_output_dir / f"redacted_{sample_fits_path.stem}_{proposal_id}.fits"
+                temp_output_dir / f"redacted_{redacted_config.proposal_id}.fits"
             )
-
-            # Write the redacted config
             redacted_config.pfs_config.writeFits(output_file)
 
-            # Verify the file was written
             assert output_file.exists()
 
-            # Verify we can read it back
             reloaded_config = PfsConfig.readFits(output_file)
-            assert reloaded_config is not None
+            assert reloaded_config.fiberId.size == pfsf_config.fiberId.size
 
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
-    )
-    def test_redaction_preserves_non_science_targets(self, sample_fits_path):
+    def test_redaction_works_on_both_input_formats(self, drp_pfs_config, pfsf_config):
+        """Files written by the DRP and files ingested at the summit both redact.
+
+        The DRP writes no FRAMEID/PROP-ID header keywords; the fiber table is the
+        same, so the redaction result must be too.
+        """
+        from_drp = pfsconfig_redaction.redact(drp_pfs_config)
+        from_pfsf = pfsconfig_redaction.redact(pfsf_config)
+
+        assert {config.proposal_id for config in from_drp} == (
+            {config.proposal_id for config in from_pfsf}
+        )
+
+    def test_redaction_preserves_non_science_targets(self, drp_pfs_config):
         """Test that SKY and FLUXSTD targets are preserved in all redacted configs."""
-        pfs_config = PfsConfig.readFits(sample_fits_path)
-        redacted_configs = pfsconfig_redaction.redact(pfs_config)
+        redacted_configs = pfsconfig_redaction.redact(drp_pfs_config)
 
         # Count original non-science targets
-        original_sky_count = np.sum(pfs_config.targetType == TargetType.SKY)
-        original_fluxstd_count = np.sum(pfs_config.targetType == TargetType.FLUXSTD)
+        original_sky_count = np.sum(drp_pfs_config.targetType == TargetType.SKY)
+        original_fluxstd_count = np.sum(drp_pfs_config.targetType == TargetType.FLUXSTD)
+
+        assert len(redacted_configs) > 0
 
         for redacted_config in redacted_configs:
             redacted_pfs = redacted_config.pfs_config
@@ -76,52 +79,49 @@ class TestIntegration:
             assert redacted_sky_count == original_sky_count
             assert redacted_fluxstd_count == original_fluxstd_count
 
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
-    )
-    def test_redaction_masks_other_proposals(self, sample_fits_path):
-        """Test that targets from other proposals are properly masked."""
-        pfs_config = PfsConfig.readFits(sample_fits_path)
-        redacted_configs = pfsconfig_redaction.redact(pfs_config)
+    def test_redaction_masks_other_proposals(self, drp_pfs_config):
+        """Test that targets from other proposals are properly masked.
+
+        NOTE: which fibers have to be masked is decided from the *original*
+        config. Deciding it from the redacted one would make the check vacuous,
+        since masking is what removes the proposalId the condition looks for.
+        """
+        original = drp_pfs_config
+        redacted_configs = pfsconfig_redaction.redact(original)
 
         for redacted_config in redacted_configs:
-            proposal_id = redacted_config.proposal_id
             redacted_pfs = redacted_config.pfs_config
+            to_mask = science_fibers_of_other_proposals(
+                original, redacted_config.proposal_id
+            )
 
-            # Check each fiber
-            for i in range(len(redacted_pfs.proposalId)):
-                if (
-                    redacted_pfs.targetType[i] == TargetType.SCIENCE
-                    and redacted_pfs.proposalId[i] != "N/A"
-                    and redacted_pfs.proposalId[i] != proposal_id
-                ):
-                    # Verify this fiber was masked
-                    assert redacted_pfs.proposalId[i] == "masked"
-                    assert redacted_pfs.catId[i] == 9000
-                    assert redacted_pfs.ra[i] == -99
-                    assert redacted_pfs.dec[i] == -99
-                    assert redacted_pfs.targetType[i] == TargetType.SCIENCE_MASKED
+            assert to_mask.size > 0, "the sample must contain fibers to mask"
 
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
-    )
-    def test_custom_masking_parameters(self, sample_fits_path):
+            for i in to_mask:
+                assert redacted_pfs.targetType[i] == TargetType.SCIENCE_MASKED
+                assert redacted_pfs.proposalId[i] == "masked"
+                assert redacted_pfs.obCode[i] == "masked"
+                assert redacted_pfs.catId[i] == 9000
+                assert redacted_pfs.objId[i] == -original.fiberId[i]
+                assert redacted_pfs.ra[i] == -99
+                assert redacted_pfs.dec[i] == -99
+                assert np.all(np.isnan(redacted_pfs.fiberFlux[i]))
+                assert all(name == "none" for name in redacted_pfs.filterNames[i])
+
+    def test_custom_masking_parameters(self, drp_pfs_config):
         """Test redaction with custom masking parameters."""
-        pfs_config = PfsConfig.readFits(sample_fits_path)
-
+        original = drp_pfs_config
         custom_dict_mask = {
             "catId": 8888,
             "ra": -88.0,
             "dec": -88.0,
-            "proposalId": "CUSTOM_MASKED",
+            "proposalId": "CUSTOM_MAS",  # 10 characters: the column width
         }
         custom_flux_val = -999.0
         custom_filter_val = "MASKED"
 
         redacted_configs = pfsconfig_redaction.redact(
-            pfs_config,
+            original,
             dict_mask_science=custom_dict_mask,
             flux_val=custom_flux_val,
             filter_val=custom_filter_val,
@@ -129,24 +129,21 @@ class TestIntegration:
 
         for redacted_config in redacted_configs:
             redacted_pfs = redacted_config.pfs_config
+            to_mask = science_fibers_of_other_proposals(
+                original, redacted_config.proposal_id
+            )
 
-            # Check that custom masking values were applied
-            for i in range(len(redacted_pfs.proposalId)):
-                if (
-                    redacted_pfs.targetType[i] == TargetType.SCIENCE_MASKED
-                    and redacted_pfs.proposalId[i] == "CUSTOM_MASKED"
-                ):
-                    assert redacted_pfs.catId[i] == 8888
-                    assert redacted_pfs.ra[i] == -88.0
-                    assert redacted_pfs.dec[i] == -88.0
+            assert to_mask.size > 0, "the sample must contain fibers to mask"
 
-                    # Check flux masking
-                    assert np.all(redacted_pfs.fiberFlux[i] == custom_flux_val)
-
-                    # Check filter masking
-                    assert all(
-                        f == custom_filter_val for f in redacted_pfs.filterNames[i]
-                    )
+            for i in to_mask:
+                assert redacted_pfs.proposalId[i] == "CUSTOM_MAS"
+                assert redacted_pfs.catId[i] == 8888
+                assert redacted_pfs.ra[i] == -88.0
+                assert redacted_pfs.dec[i] == -88.0
+                assert np.all(redacted_pfs.fiberFlux[i] == custom_flux_val)
+                assert all(
+                    name == custom_filter_val for name in redacted_pfs.filterNames[i]
+                )
 
     def test_redaction_with_mock_data(self, mock_pfs_config):
         """Test redaction workflow with mock data."""

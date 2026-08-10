@@ -1,5 +1,4 @@
 import copy
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -344,56 +343,40 @@ class TestFluxstdRedaction:
                 assert redacted.proposalId[i] in ("N/A", "masked", recipient)
 
 
-class TestRedactIntegration:
-    """Integration tests for the redact function with real-like data."""
+class TestRedactWithSampleFiles:
+    """Tests of redact() against the sample files committed under tests/data/."""
 
-    @pytest.fixture
-    def sample_fits_file(self):
-        """Path to the sample FITS file for testing."""
-        return Path("tmp/PFSF12361000.fits")
+    def test_redact_returns_a_config_per_proposal(self, pfsf_config):
+        """Every proposal in the file gets its own redacted PfsConfig."""
+        result = redact(pfsf_config)
 
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
-    )
-    def test_redact_with_real_file(self, sample_fits_file):
-        """Test redact function with real FITS file."""
-        pfs_config = PfsConfig.readFits(sample_fits_file)
-
-        result = redact(pfs_config)
-
-        assert isinstance(result, list)
-        assert len(result) > 0
         assert all(isinstance(item, RedactedPfsConfigDataClass) for item in result)
+        assert {item.proposal_id for item in result} == {
+            str(pid) for pid in np.unique(pfsf_config.proposalId) if pid != "N/A"
+        }
+        assert all(isinstance(item.pfs_config, PfsConfig) for item in result)
 
-        # Verify that each result has valid proposal IDs
-        for redacted_config in result:
-            assert redacted_config.proposal_id != "N/A"
-            assert isinstance(redacted_config.pfs_config, PfsConfig)
+    def test_no_proposal_leaks_across_configs(self, pfsf_config):
+        """No fiber exposes the proposal association of another programme.
 
-    @pytest.mark.skipif(
-        not Path("tmp/PFSF12361000.fits").exists(),
-        reason="Sample FITS file not available",
-    )
-    def test_redact_masking_behavior(self, sample_fits_file):
-        """Test that masking behavior works correctly with real data."""
-        pfs_config = PfsConfig.readFits(sample_fits_file)
+        NOTE: the fibers to check are selected from the *original* config, so
+        that masking cannot make the check pass by removing what it looks for.
+        """
+        original = pfsf_config
+        results = redact(original)
 
-        result = redact(pfs_config)
+        assert len(results) > 1, "the sample must contain more than one proposal"
 
-        for redacted_config in result:
-            redacted_pfs = redacted_config.pfs_config
-            proposal_id = redacted_config.proposal_id
+        for redacted_config in results:
+            redacted = redacted_config.pfs_config
+            recipient = redacted_config.proposal_id
+            others = np.flatnonzero(
+                (original.proposalId != "N/A") & (original.proposalId != recipient)
+            )
 
-            # Check that other proposal IDs are masked
-            for i in range(len(redacted_pfs.proposalId)):
-                if (
-                    redacted_pfs.proposalId[i] != "N/A"
-                    and redacted_pfs.proposalId[i] != proposal_id
-                    and redacted_pfs.targetType[i] == TargetType.SCIENCE
-                ):
-                    # Verify masking occurred
-                    assert redacted_pfs.proposalId[i] == "masked"
-                    assert redacted_pfs.catId[i] == 9000  # default cat_id
-                    assert redacted_pfs.ra[i] == -99
-                    assert redacted_pfs.dec[i] == -99
+            assert others.size > 0
+
+            for i in others:
+                assert redacted.proposalId[i] in ("N/A", "masked")
+                assert redacted.obCode[i] in ("N/A", "masked")
+                assert redacted.obCode[i] != original.obCode[i]
