@@ -95,11 +95,8 @@ class TestRedactFunction:
 
         return mock_config
 
-    @patch("pfsconfig_redaction.utils.copy.deepcopy")
-    def test_redact_default_parameters(self, mock_deepcopy, mock_pfs_config):
+    def test_redact_default_parameters(self, mock_pfs_config):
         """Test redact function with default parameters."""
-        mock_deepcopy.return_value = mock_pfs_config
-
         result = redact(mock_pfs_config)
 
         assert isinstance(result, list)
@@ -180,17 +177,18 @@ class TestRedactFunction:
             if hasattr(mock_pfs_config, attr):
                 setattr(corrupted_copy, attr, getattr(mock_pfs_config, attr))
 
-        # Modify the corrupted copy to have a different targetType that creates mismatch
+        corrupted_copy.targetType = mock_pfs_config.targetType
+
+        # Modify the corrupted copy so that the counts no longer match.
         # Original: S25A-002QF has 1 SCIENCE fiber (position 1)
-        # Corrupted: S25A-002QF fiber becomes SKY, creating 0 unmasked SCIENCE fibers
-        corrupted_copy.targetType = np.array(
-            [
-                TargetType.SCIENCE,  # fiber 1: S25A-001QF
-                TargetType.SKY,  # fiber 2: S25A-002QF - Changed from SCIENCE
-                TargetType.SKY,  # fiber 3: N/A
-                TargetType.FLUXSTD,  # fiber 4: N/A
-                TargetType.SCIENCE,  # fiber 5: S25A-001QF
-            ]
+        # Corrupted: that fiber claims no proposal, so it is not counted as an
+        # unmasked SCIENCE fiber of S25A-002QF either.
+        # NOTE: the corruption drops the proposal association rather than changing
+        # the targetType. A SCIENCE fiber turned into a SKY fiber of another
+        # proposal is refused outright by redact(), and the count check under test
+        # would never be reached.
+        corrupted_copy.proposalId = np.array(
+            ["S25A-001QF", "N/A", "N/A", "N/A", "S25A-001QF"]
         )
 
         mock_deepcopy.return_value = corrupted_copy
@@ -312,16 +310,14 @@ class TestFluxstdRedaction:
 
         # Corrupt the working copy so the owner's duplicated FLUXSTD is no longer
         # counted as unmasked, while the SCIENCE counts stay consistent.
+        # NOTE: the corruption drops the proposal association rather than changing
+        # the targetType. Turning the fiber into a SKY fiber would leave it as a
+        # SKY fiber of another proposal, which redact() now refuses outright, and
+        # the count check under test would never be reached.
         corrupted_copy = copy.deepcopy(original)
-        corrupted_copy.targetType = np.array(
-            [
-                TargetType.SCIENCE,
-                TargetType.SKY,  # was FLUXSTD for S26A-999QF
-                TargetType.FLUXSTD,
-                TargetType.SCIENCE,
-                TargetType.SKY,
-                TargetType.FLUXSTD,
-            ]
+        corrupted_copy.proposalId = np.array(
+            ["S26A-999QF", "N/A", "N/A", "S26A-888QF", "N/A", "S26A-888QF"],
+            dtype="U10",
         )
 
         with (
