@@ -151,20 +151,10 @@ def mock_pfs_config():
     mock_config.totalFluxErr = mock_config.totalFlux * 0.1
 
     # Filter information
-    mock_config.filterNames = np.array(
-        [
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-            ["g", "r", "i", "z", "y"],
-        ]
-    )
+    # NOTE: a list of lists, as the datamodel defines it. A numpy array would
+    # be fixed width, and assigning the mask value "none" into a <U1 array
+    # truncates it to "n".
+    mock_config.filterNames = [["g", "r", "i", "z", "y"] for _ in range(10)]
 
     return mock_config
 
@@ -215,7 +205,7 @@ def simple_mock_pfs_config():
         elif "Flux" in attr:
             setattr(mock_config, attr, np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
         elif attr == "filterNames":
-            setattr(mock_config, attr, np.array([["g", "r"], ["i", "z"], ["g", "i"]]))
+            setattr(mock_config, attr, [["g", "r"], ["i", "z"], ["g", "i"]])
         else:
             setattr(mock_config, attr, np.array([1.0, 2.0, 3.0]))
 
@@ -289,7 +279,7 @@ def mock_pfs_config_dup_fluxstd():
     mock_config.psfFluxErr = mock_config.psfFlux * 0.1
     mock_config.totalFluxErr = mock_config.totalFlux * 0.1
 
-    mock_config.filterNames = np.array([["g", "r", "i"]] * n_fiber)
+    mock_config.filterNames = [["g", "r", "i"] for _ in range(n_fiber)]
 
     return mock_config
 

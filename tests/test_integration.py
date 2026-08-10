@@ -159,6 +159,27 @@ class TestIntegration:
         assert len(results) == 1
         assert results[0].pfs_config.targetType[i] == TargetType.SUNSS_IMAGING
 
+    def test_mask_leaving_the_proposal_association_is_refused(self, drp_pfs_config):
+        """A mask that would deliver another proposal's association is refused.
+
+        The result is checked against the input before it is returned, so a mask
+        dictionary that forgets proposalId cannot produce a file no matter what
+        else it masks.
+        """
+        with pytest.raises(ValueError, match="proposalId"):
+            pfsconfig_redaction.redact(
+                drp_pfs_config,
+                dict_mask_science={"ra": -99, "dec": -99},
+            )
+
+    def test_mask_leaving_the_ob_code_is_refused(self, drp_pfs_config):
+        """obCode identifies the observing block of the other proposal too."""
+        with pytest.raises(ValueError, match="obCode"):
+            pfsconfig_redaction.redact(
+                drp_pfs_config,
+                dict_mask_science={"proposalId": "masked", "ra": -99},
+            )
+
     def test_mask_value_wider_than_the_column_is_not_truncated(self, drp_pfs_config):
         """A mask value longer than the FITS column survives intact.
 
@@ -177,6 +198,7 @@ class TestIntegration:
             original,
             dict_mask_science={
                 "patch": "-1,-1",
+                "proposalId": "masked",
                 "obCode": long_ob_code,
                 "targetType": TargetType.SCIENCE_MASKED,
             },
@@ -207,6 +229,7 @@ class TestIntegration:
             "ra": -88.0,
             "dec": -88.0,
             "proposalId": "CUSTOM_MAS",  # 10 characters: the column width
+            "obCode": "CUSTOM_MASKED",
         }
         custom_flux_val = -999.0
         custom_filter_val = "MASKED"

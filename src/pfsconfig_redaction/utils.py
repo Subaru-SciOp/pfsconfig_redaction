@@ -90,6 +90,162 @@ def _widen_string_columns(
             setattr(pfs_config, key, array.astype(f"U{len(value)}"))
 
 
+def _equals_mask(actual: np.ndarray, mask_value) -> bool:
+    """
+    Check that every element of ``actual`` holds ``mask_value``.
+
+    NOTE: the comparison casts the mask value to the dtype it was stored in.
+    ``parallax`` is float32 in a real file, so the stored 1.0e-7 does not compare
+    equal to the Python float it came from.
+
+    Parameters
+    ----------
+    actual : numpy.ndarray
+        The values found in the redacted config.
+    mask_value : int, str, float or tuple
+        The value they are supposed to hold.
+
+    Returns
+    -------
+    bool
+        True if every element matches, NaN counting as a match for NaN.
+    """
+    expected = np.asarray(mask_value)
+    if expected.dtype.kind == "f" and actual.dtype.kind == "f":
+        expected = expected.astype(actual.dtype)
+        return bool(
+            np.all((actual == expected) | (np.isnan(actual) & np.isnan(expected)))
+        )
+    if expected.dtype.kind in "iu" and actual.dtype.kind in "iu":
+        expected = expected.astype(actual.dtype)
+    return bool(np.all(actual == expected))
+
+
+def _verify_redaction(
+    original: PfsConfig,
+    redacted: PfsConfig,
+    recipient: str,
+    dict_mask_science: dict,
+    dict_mask_fluxstd: dict,
+    flux_keys: list[str],
+    flux_val: float,
+    filter_val: str,
+) -> None:
+    """
+    Check the redacted config against the input before it is handed out.
+
+    The check is deliberately expressed against the *output*: which fibers had to
+    be masked is derived from the original config, and the redacted one is then
+    read back to confirm what actually happened to them. Restating the masking
+    rules would only assert that the loop did what the loop does.
+
+    Three things are verified:
+
+    1. every fiber that had to be masked holds the mask values, so a value that
+       failed to be stored (silently truncated, for instance) is caught;
+    2. no fiber of another proposal still shows its original ``proposalId`` or
+       ``obCode``, which holds whatever the mask values happen to be. A custom
+       mask dictionary that leaves either in place is refused;
+    3. the fibers that had to be left alone are untouched, so redaction cannot
+       quietly damage the recipient's own targets or the sky fibers.
+
+    Parameters
+    ----------
+    original : PfsConfig
+        The config as it was read.
+    redacted : PfsConfig
+        The redacted copy about to be returned.
+    recipient : str
+        The proposal ID this copy is destined for.
+    dict_mask_science, dict_mask_fluxstd : dict
+        The mask values that were applied.
+    flux_keys : list of str
+        The flux fields that were masked.
+    flux_val : float
+        The value the flux fields were masked with.
+    filter_val : str
+        The value the filter names were masked with.
+
+    Raises
+    ------
+    ValueError
+        If any of the three checks fails.
+    """
+    proposal_id = np.asarray(original.proposalId)
+    target_type = np.asarray(original.targetType)
+    is_other = (proposal_id != "N/A") & (proposal_id != recipient)
+
+    masked_science = np.flatnonzero(is_other & (target_type == TargetType.SCIENCE))
+    masked_fluxstd = np.flatnonzero(is_other & (target_type == TargetType.FLUXSTD))
+    untouched = np.flatnonzero(~is_other)
+
+    problems: list[str] = []
+
+    # 1. The mask values reached the config.
+    for indices, dict_mask in (
+        (masked_science, dict_mask_science),
+        (masked_fluxstd, dict_mask_fluxstd),
+    ):
+        if indices.size == 0:
+            continue
+        for key, value in dict_mask.items():
+            actual = np.asarray(getattr(redacted, key))[indices]
+            if not _equals_mask(actual, value):
+                problems.append(
+                    f"{key} was not masked with {value!r} on all "
+                    f"{indices.size} fibers that required it"
+                )
+
+    for i_fiber in masked_science:
+        for key in flux_keys:
+            if not _equals_mask(np.asarray(getattr(redacted, key)[i_fiber]), flux_val):
+                problems.append(f"{key} was not masked on fiber index {i_fiber}")
+        if any(name != filter_val for name in redacted.filterNames[i_fiber]):
+            problems.append(f"filterNames was not masked on fiber index {i_fiber}")
+
+    # 2. No proposal association of another programme survives.
+    # NOTE: a value that was already "N/A" identifies nothing, and masking it
+    # leaves it unchanged, so it is not a survival.
+    for indices in (masked_science, masked_fluxstd):
+        for key in ("proposalId", "obCode"):
+            before = np.asarray(getattr(original, key))[indices]
+            after = np.asarray(getattr(redacted, key))[indices]
+            still_there = np.flatnonzero((after == before) & (before != "N/A"))
+            if still_there.size > 0:
+                problems.append(
+                    f"{key} of another proposal survived on "
+                    f"{still_there.size} fibers, e.g. fiber index "
+                    f"{indices[still_there[0]]}"
+                )
+
+    # 3. Everything that had to be left alone was left alone.
+    keys_touched = set(dict_mask_science) | set(dict_mask_fluxstd) | {"objId"}
+    for key in sorted(keys_touched):
+        before = np.asarray(getattr(original, key))[untouched]
+        after = np.asarray(getattr(redacted, key))[untouched]
+        # NOTE: equal_nan, because a NaN that was there before is not a change.
+        # Real files carry NaN in the photometry of targets never measured.
+        if not np.array_equal(before, after, equal_nan=before.dtype.kind == "f"):
+            problems.append(f"{key} was modified on fibers that had to be left alone")
+
+    for i_fiber in untouched:
+        for key in flux_keys:
+            before = np.asarray(getattr(original, key)[i_fiber])
+            after = np.asarray(getattr(redacted, key)[i_fiber])
+            if not np.array_equal(before, after, equal_nan=before.dtype.kind == "f"):
+                problems.append(f"{key} was modified on fiber index {i_fiber}")
+        if list(original.filterNames[i_fiber]) != list(redacted.filterNames[i_fiber]):
+            problems.append(f"filterNames was modified on fiber index {i_fiber}")
+
+    if problems:
+        message = (
+            f"Redaction for proposal {recipient} did not produce a deliverable "
+            f"config: {'; '.join(sorted(set(problems)))}."
+        )
+        logger.error(f"  {message}")
+        raise ValueError(message)
+
+
 def redact(
     pfs_config: PfsConfig,
     cat_id: int = 9000,
@@ -355,23 +511,20 @@ def redact(
             f"  Number of unmasked fibers for {propid_work}: {n_fiber_unmasked}"
         )
 
-        # NOTE: check SCIENCE and FLUXSTD separately. Comparing the sums would let a
-        # deficit in one target type be cancelled out by a surplus in the other.
-        mismatches: list[str] = []
-        if n_fiber_work_science != n_fiber_unmasked_science:
-            mismatches.append(
-                f"Number of SCIENCE fibers for {propid_work} ({n_fiber_work_science}) does not "
-                f"match the number of unmasked SCIENCE fibers ({n_fiber_unmasked_science})."
-            )
-        if n_fiber_work_fluxstd != n_fiber_unmasked_fluxstd:
-            mismatches.append(
-                f"Number of FLUXSTD fibers for {propid_work} ({n_fiber_work_fluxstd}) does not "
-                f"match the number of unmasked FLUXSTD fibers ({n_fiber_unmasked_fluxstd})."
-            )
-        if mismatches:
-            message = " ".join(mismatches)
-            logger.error(f"  {message}")
-            raise ValueError(message)
+        # NOTE: this used to compare the number of fibers belonging to this
+        # proposal with the number left unmasked. Both were counted from the same
+        # condition, so they agreed by construction and the check could not fail.
+        # The redacted config is inspected instead.
+        _verify_redaction(
+            pfs_config,
+            redacted_cfg,
+            propid_work,
+            dict_mask_science,
+            dict_mask_fluxstd,
+            flux_keys,
+            flux_val,
+            filter_val,
+        )
 
         redacted_pfsconfigs.append(
             RedactedPfsConfigDataClass(proposal_id=propid_work, pfs_config=redacted_cfg)

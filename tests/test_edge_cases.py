@@ -73,7 +73,7 @@ class TestEdgeCases:
             elif "Flux" in attr:
                 setattr(mock_config, attr, np.array([[1.0, 2.0]]))
             elif attr == "filterNames":
-                setattr(mock_config, attr, np.array([["g", "r"]]))
+                setattr(mock_config, attr, [["g", "r"]])
             else:
                 setattr(mock_config, attr, np.array([1.0]))
 
@@ -165,7 +165,7 @@ class TestEdgeCases:
                 setattr(
                     mock_config,
                     attr,
-                    np.array([["g", "r"], ["i", "z"], ["g", "i"], ["r", "z"]]),
+                    [["g", "r"], ["i", "z"], ["g", "i"], ["r", "z"]],
                 )
             else:
                 setattr(mock_config, attr, np.array([1.0, 2.0, 3.0, 4.0]))
@@ -222,7 +222,7 @@ class TestEdgeCases:
             elif "Flux" in attr:
                 setattr(mock_config, attr, np.array([[1.0, 2.0]]))
             elif attr == "filterNames":
-                setattr(mock_config, attr, np.array([["g", "r"]]))
+                setattr(mock_config, attr, [["g", "r"]])
             else:
                 setattr(mock_config, attr, np.array([1.0]))
 
@@ -296,7 +296,7 @@ class TestEdgeCases:
             elif "Flux" in attr:
                 setattr(mock_config, attr, np.array([[1.0, 2.0], [3.0, 4.0]]))
             elif attr == "filterNames":
-                setattr(mock_config, attr, np.array([["g", "r"], ["i", "z"]]))
+                setattr(mock_config, attr, [["g", "r"], ["i", "z"]])
             else:
                 setattr(mock_config, attr, np.array([1.0, 2.0]))
 
@@ -348,7 +348,7 @@ class TestEdgeCases:
             elif "Flux" in attr and attr != "fiberFlux":
                 setattr(mock_config, attr, np.array([[1.0, 2.0], [3.0, 4.0]]))
             elif attr == "filterNames":
-                setattr(mock_config, attr, np.array([["g", "r"], ["i", "z"]]))
+                setattr(mock_config, attr, [["g", "r"], ["i", "z"]])
             else:
                 setattr(mock_config, attr, np.array([1.0, 2.0]))
 
@@ -396,7 +396,7 @@ class TestEdgeCases:
         mock_config.objId = np.array([10])
 
         # Empty filter names
-        mock_config.filterNames = np.array([[]])
+        mock_config.filterNames = [[]]
 
         # Add other required attributes
         for attr in [
