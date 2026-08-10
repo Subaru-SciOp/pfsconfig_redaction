@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -354,6 +355,32 @@ class TestEdgeCases:
         # Should handle NaN/inf values without crashing
         result = redact(mock_config)
         assert len(result) == 2
+
+    def test_header_without_optional_keywords(self, simple_mock_pfs_config):
+        """A header lacking FRAMEID/PROP-ID is still redactable.
+
+        pfsConfig files produced by the DRP carry neither keyword; only the PFSF
+        files ingested at the summit do. Both are valid inputs, and the keywords
+        are used for logging only.
+        """
+        simple_mock_pfs_config.header = {}
+
+        result = redact(simple_mock_pfs_config)
+
+        assert len(result) == 1
+        assert result[0].proposal_id == "S25A-TEST"
+
+    def test_missing_header_keywords_are_logged_as_na(
+        self, simple_mock_pfs_config, caplog
+    ):
+        """Absent header keywords are logged as "N/A", not as "None"."""
+        caplog.set_level(logging.INFO)
+        simple_mock_pfs_config.header = {}
+
+        redact(simple_mock_pfs_config)
+
+        assert "Starting redaction of N/A" in caplog.text
+        assert "Original proposal ID: N/A" in caplog.text
 
     def test_empty_filter_names(self):
         """Test handling of empty filter names."""

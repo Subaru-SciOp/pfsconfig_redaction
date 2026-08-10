@@ -135,11 +135,13 @@ def redact(
     if filter_val is None:
         filter_val = "none"
 
-    logger.info(f"Starting redaction of {pfs_config.header['FRAMEID']}")
+    # NOTE: FRAMEID is present in PFSF files ingested at the summit but not in
+    # pfsConfig files written by the DRP. It is used for logging only.
+    logger.info(f"Starting redaction of {pfs_config.header.get('FRAMEID', 'N/A')}")
     logger.info(f"  pfsDesignId: {pfs_config.pfsDesignId:#016x}")
     logger.info(f"  pfsDesignName: {pfs_config.designName}")
 
-    orig_proposal_id = pfs_config.header.get("PROP-ID")
+    orig_proposal_id = pfs_config.header.get("PROP-ID", "N/A")
     logger.info(f"  Original proposal ID: {orig_proposal_id}")
 
     n_fiber_science: int = np.sum(pfs_config.targetType == TargetType.SCIENCE)
