@@ -1,3 +1,7 @@
+import subprocess
+import sys
+import textwrap
+
 import pytest
 
 
@@ -72,6 +76,38 @@ class TestImports:
             assert Mock is not None
         except ImportError:
             pytest.fail("unittest.mock is not available")
+
+    def test_importing_does_not_configure_the_root_logger(self):
+        """Importing the package leaves the application's logging alone.
+
+        A library that calls logging.basicConfig() sets the level and installs a
+        handler on the root logger of whatever imports it, silently overriding
+        the application's own configuration.
+
+        NOTE: run in a subprocess, because the package is already imported by
+        the time this test runs and the effect only happens once.
+        """
+        script = textwrap.dedent(
+            """
+            import logging
+
+            before = (logging.root.level, len(logging.root.handlers))
+            import pfsconfig_redaction  # noqa: F401
+            after = (logging.root.level, len(logging.root.handlers))
+
+            print(before, "->", after)
+            """
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        before, after = result.stdout.strip().split(" -> ")
+        assert before == after, f"importing changed the root logger: {result.stdout}"
 
     def test_logging_setup(self):
         """Test that logging is properly configured."""

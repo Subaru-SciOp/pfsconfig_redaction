@@ -116,10 +116,19 @@ pip install .
 ## Usage
 
 ```python
+import logging
 from pathlib import Path
 
 from pfs.datamodel import PfsConfig
 import pfsconfig_redaction
+
+# The package logs what it masks, per fiber type and per proposal, but it does
+# not configure logging itself: where records go is the application's decision.
+# This line is what makes those messages appear in a script.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 indir = Path("tmp")
 outdir = Path("tmp")
