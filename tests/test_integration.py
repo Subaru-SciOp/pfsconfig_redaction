@@ -57,6 +57,20 @@ class TestIntegration:
             {config.proposal_id for config in from_pfsf}
         )
 
+    def test_results_are_returned_in_a_stable_order(self, drp_pfs_config):
+        """The redacted configs come out sorted by proposal ID.
+
+        The order used to be whatever iterating a set of strings produced, which
+        varies with PYTHONHASHSEED: two runs over the same file could not be
+        compared, and an order-sensitive test failed on some interpreters only.
+        """
+        proposal_ids = [
+            config.proposal_id for config in pfsconfig_redaction.redact(drp_pfs_config)
+        ]
+
+        assert len(proposal_ids) > 1, "the sample must contain several proposals"
+        assert proposal_ids == sorted(proposal_ids)
+
     def test_redaction_preserves_non_science_targets(self, drp_pfs_config):
         """Test that SKY and FLUXSTD targets are preserved in all redacted configs."""
         redacted_configs = pfsconfig_redaction.redact(drp_pfs_config)
